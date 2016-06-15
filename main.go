@@ -477,14 +477,12 @@ func validateMsgTx(msgtx *wire.MsgTx, inputs []btcjson.ListUnspentResult) error 
 		if err != nil {
 			return fmt.Errorf("cannot decode scriptPubKey: %s", err)
 		}
-		fmt.Printf("FLAGS: %+v\n", flags)
 		engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags)
 		//engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags, nil)
 		if err != nil {
 			anchorLog.Errorf("cannot create script engine: %s\n", err)
 			return fmt.Errorf("cannot create script engine: %s", err)
 		}
-		fmt.Printf("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH:\n%+v\n", msgtx.TxSha().String())
 		if err = engine.Execute(); err != nil {
 			anchorLog.Errorf("cannot execute script engine: %s\n  === UnspentResult: %s", err, spew.Sdump(inputs[i]))
 			return fmt.Errorf("cannot execute script engine: %s", err)
