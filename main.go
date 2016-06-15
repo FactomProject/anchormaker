@@ -383,6 +383,8 @@ func createRawTransaction(b balance, hash []byte, blockHeight uint32) (*wire.Msg
 	}
 
 	if err := validateMsgTx(msgtx, []btcjson.ListUnspentResult{b.unspentResult}); err != nil {
+		fmt.Printf("VALERRRRRRRRR\n%+v\n", b.unspentResult)
+		fmt.Println(b.address.String())
 		return nil, fmt.Errorf("cannot validateMsgTx: %s", err)
 	}
 
@@ -477,12 +479,14 @@ func validateMsgTx(msgtx *wire.MsgTx, inputs []btcjson.ListUnspentResult) error 
 		if err != nil {
 			return fmt.Errorf("cannot decode scriptPubKey: %s", err)
 		}
+		fmt.Printf("FLAGS: %+v\n", flags)
 		engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags)
 		//engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags, nil)
 		if err != nil {
 			anchorLog.Errorf("cannot create script engine: %s\n", err)
 			return fmt.Errorf("cannot create script engine: %s", err)
 		}
+		fmt.Printf("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH:\n%+v\n", msgtx.TxSha().String())
 		if err = engine.Execute(); err != nil {
 			anchorLog.Errorf("cannot execute script engine: %s\n  === UnspentResult: %s", err, spew.Sdump(inputs[i]))
 			return fmt.Errorf("cannot execute script engine: %s", err)
@@ -559,7 +563,7 @@ func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey com
 		updateUTXO(minBalance)
 	}
 
-	ticker0 := time.NewTicker(time.Minute * time.Duration(1))
+	ticker0 := time.NewTicker(time.Second * time.Duration(4))
 	go func() {
 		for _ = range ticker0.C {
 			if wclient != nil && dclient != nil {
@@ -624,7 +628,7 @@ func InitRPCClient() error {
 	rpcClientHost := cfg.Btc.RpcClientHost
 	rpcClientEndpoint := cfg.Btc.RpcClientEndpoint
 	rpcClientUser := cfg.Btc.RpcClientUser
-	rpcClientPass := "SecurePassHere" //cfg.Btc.RpcClientPass
+	rpcClientPass := cfg.Btc.RpcClientPass
 	certHomePathBtcd := cfg.Btc.CertHomePathBtcd
 	rpcBtcdHost := cfg.Btc.RpcBtcdHost
 
@@ -691,7 +695,6 @@ func (u ByAmount) Less(i, j int) bool { return u[i].unspentResult.Amount < u[j].
 func (u ByAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
 
 func updateUTXO(base btcutil.Amount) error {
-	fmt.Println("UUTXO")
 	anchorLog.Info("updateUTXO: base=", base.ToBTC())
 	if wclient == nil {
 		anchorLog.Info("updateUTXO: wclient is nil")
@@ -699,25 +702,20 @@ func updateUTXO(base btcutil.Amount) error {
 	}
 	err := unlockWallet(int64(6)) //600
 	if err != nil {
-		fmt.Println("UUTXO1:", err)
 		return fmt.Errorf("%s", err)
 	}
 
 	unspentResults, err := wclient.ListUnspentMin(confirmationsNeeded) //minConf=1
 	if err != nil {
-		fmt.Println("UUTXO2:", err)
-
 		return fmt.Errorf("cannot list unspent. %s", err)
 	}
 	anchorLog.Info("updateUTXO: unspentResults.len=", len(unspentResults))
 
 	if len(unspentResults) > 0 {
-		fmt.Println("UUTXO3:")
-
 		balances = make([]balance, 0, len(unspentResults))
 		// var i int
 		for _, b := range unspentResults {
-			if b.Amount > base.ToBTC() { //fee.ToBTC()
+			if b.Amount > base.ToBTC() && b.Account != "imported" { //fee.ToBTC()
 				balances = append(balances, balance{unspentResult: b})
 				// i++
 			}
@@ -727,8 +725,6 @@ func updateUTXO(base btcutil.Amount) error {
 
 	// Sort eligible balances so that we first pick the ones with highest one
 	sort.Sort(sort.Reverse(ByAmount(balances)))
-	fmt.Println("UUTXO4")
-
 	for i, b := range balances {
 		addr, err := btcutil.DecodeAddress(b.unspentResult.Address, &chaincfg.TestNet3Params)
 		if err != nil {
