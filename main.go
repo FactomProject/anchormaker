@@ -18,6 +18,7 @@ import (
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/FactomCode/database/ldb"
+	"github.com/FactomProject/FactomCode/factomlog"
 	"github.com/FactomProject/factom"
 
 	"github.com/btcsuitereleases/btcd/btcjson"
@@ -58,6 +59,8 @@ var (
 	serverECKey common.PrivateKey
 	//Anchor chain ID
 	anchorChainID *common.Hash
+	//Logger
+	anchorLog *factomlog.FLogger
 	//InmsgQ for submitting the entry to server
 	inMsgQ = make(chan factomwire.FtmInternalMsg, 100) //incoming message queue for factom application messages
 )
@@ -147,9 +150,7 @@ func initDB(ldbpath string) {
 }
 
 func initServerKeys() {
-	readConfig()
 	var err error
-	fmt.Println("SPKH:", serverPrivKeyHex)
 	serverPrivKey, err = common.NewPrivateKeyFromHex(serverPrivKeyHex)
 	if err != nil {
 		panic("Cannot parse Server Private Key from configuration file: " + err.Error())
@@ -159,9 +160,10 @@ func initServerKeys() {
 }
 
 func main() {
+	readConfig()
 	anchorLog.Info("Anchormaker: Initializing db...\n")
 	initServerKeys()
-	initDB("/home/flar/.factom/myAnchorDB")
+	initDB(cfg.App.LdbPath)
 	fmt.Printf("Anchormaker: Starting synchWithFactomState...\n")
 
 	//go synchWithFactomState()
@@ -549,10 +551,7 @@ func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey com
 	anchorLog.Debug("init dirBlockInfoMap.len=", len(dirBlockInfoMap))
 
 	// this might take a while to check missing DirBlockInfo for existing DirBlocks in database
-	readConfig()
-	if cfg.App.InitLeader {
-		go checkMissingDirBlockInfo()
-	}
+	go checkMissingDirBlockInfo()
 
 	if err = InitRPCClient(); err != nil {
 		anchorLog.Error(err.Error())
@@ -589,8 +588,13 @@ func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey com
 }
 
 func readConfig() {
-	anchorLog.Info("readConfig")
 	cfg = readAnchorConfig()
+
+	// setup logger
+	logfile, _ := os.OpenFile(cfg.Log.LogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0660)
+	anchorLog = factomlog.New(logfile, cfg.Log.LogLevel, "ANCH")
+	anchorLog.Info("readConfig")
+
 	confirmationsNeeded = cfg.Anchor.ConfirmationsNeeded
 	fee, _ = btcutil.NewAmount(cfg.Btc.BtcTransFee)
 

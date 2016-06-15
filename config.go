@@ -7,24 +7,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FactomProject/FactomCode/common"
-
 	"gopkg.in/gcfg.v1"
 )
 
 type anchorConfig struct {
 	App struct {
-		HomeDir                 string
-		LdbPath                 string
-		BoltDBPath              string
-		DataStorePath           string
-		DirectoryBlockInSeconds int
-		NodeMode                string
-		NodeID                  string
-		Passphrase              string
-		InitLeader              bool
-		ServerPrivKey           string
-		ExchangeRate            uint64
+		HomeDir       string
+		LdbPath       string
+		ServerPrivKey string
 	}
 	Anchor struct {
 		ServerECKey         string
@@ -46,30 +36,9 @@ type anchorConfig struct {
 		RpcUser            string
 		RpcPass            string
 	}
-	Rpc struct {
-		PortNumber       int
-		ApplicationName  string
-		RefreshInSeconds int
-	}
-	Wsapi struct {
-		PortNumber      int
-		ApplicationName string
-	}
 	Log struct {
 		LogPath  string
 		LogLevel string
-	}
-	Wallet struct {
-		Address          string
-		Port             int
-		DataFile         string
-		RefreshInSeconds string
-		BoltDBPath       string
-		FactomdAddress   string
-		FactomdPort      int
-	}
-	Controlpanel struct {
-		Port string
 	}
 
 	//	AddPeers     []string `short:"a" long:"addpeer" description:"Add a peer to connect with at startup"`
@@ -90,18 +59,7 @@ const defaultConfig = `
 [app]
 HomeDir								= ""
 LdbPath					        	= "ldb"
-BoltDBPath							= ""
-DataStorePath			      		= "data/export/"
-DirectoryBlockInSeconds				= 60
-; --------------- NodeMode: FULL | SERVER | LIGHT ----------------
-NodeMode				        	= FULL
-; NodeID is a hash hex string uniquely identifying this server and MUST be set for a federate server (NodeMode is SERVER)
-NodeID								= "SERVER_DEFAULT"
-Passphrase 							= "please change me"
-; This server will start as the ONLY leader initially among federate servers if InitLead is true, and all other servers have to be set as false.
-InitLeader							= "false"
 ServerPrivKey			      		= 07c0d52cb74f4ca3106d80c4a70488426886bccc6ebc10c6bafb37bf8a65f4c38cee85c62a9e48039d4ac294da97943c2001be1539809ea5f54721f0c5477a0a
-ExchangeRate                        = 00666600
 [anchor]
 ServerECKey							= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
 AnchorChainID						= df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
@@ -116,33 +74,14 @@ RpcClientPass 						= "notarychain"
 BtcTransFee				  			= 0.0001
 CertHomePathBtcd					= "btcd"
 RpcBtcdHost 			  			= "localhost:18334"
-RpcUser								=testuser
-RpcPass								=notarychain
-[wsapi]
-ApplicationName						= "Factom/wsapi"
-PortNumber				  			= 8088
+RpcUser                             = "testuser"
+RpcPass                             = "notarychain"
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
 ; ------------------------------------------------------------------------------
 [log]
 logLevel 							= debug
-LogPath								= "factom-d.log"
-; ------------------------------------------------------------------------------
-; Configurations for fctwallet
-; ------------------------------------------------------------------------------
-[Wallet]
-Address          					= localhost
-Port             					= 8089
-DataFile         					= fctwallet.dat
-RefreshInSeconds 					= 60
-BoltDBPath 							= ""
-FactomdAddress                      = localhost
-FactomdPort                         = 8088
-; ------------------------------------------------------------------------------
-; Configurations for controlpanel
-; ------------------------------------------------------------------------------
-[Controlpanel]
-Port             					= 8090
+LogPath								= "anchormaker.log"
 `
 
 //var acfg *anchorConfig
@@ -177,18 +116,12 @@ func readAnchorConfig() *anchorConfig {
 		filename = getHomeDir() + filename
 	}
 	cfg := new(anchorConfig)
-	//log.Println("read factom config file: ", filename)
+	//log.Println("read anchormaker config file: ", filename)
 
 	err := gcfg.ReadFileInto(cfg, filename)
 	if err != nil {
 		log.Println("ERROR Reading config file!\nServer starting with default settings...\n", err)
 		gcfg.ReadStringInto(cfg, defaultConfig)
-	}
-
-	//log.Println("nodeMode=", cfg.App.NodeMode, ", NodeID=", cfg.App.NodeID)
-	// should have a version check here
-	if cfg.App.NodeMode == common.SERVER_NODE && len(cfg.App.NodeID) == 0 {
-		log.Println("ERROR!!! When running as a federate server (NodeMode is SERVER) in milestone II, NodeID must be set")
 	}
 
 	// Default to home directory if not set
@@ -198,10 +131,7 @@ func readAnchorConfig() *anchorConfig {
 
 	// TODO: improve the paths after milestone 1
 	cfg.App.LdbPath = cfg.App.HomeDir + cfg.App.LdbPath
-	cfg.App.BoltDBPath = cfg.App.HomeDir + cfg.App.BoltDBPath
-	cfg.App.DataStorePath = cfg.App.HomeDir + cfg.App.DataStorePath
 	cfg.Log.LogPath = cfg.App.HomeDir + cfg.Log.LogPath
-	cfg.Wallet.BoltDBPath = cfg.App.HomeDir + cfg.Wallet.BoltDBPath
 
 	return cfg
 }
