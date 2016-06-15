@@ -73,12 +73,12 @@ CertHomePath			  			= "btcwallet"
 RpcClientHost			  			= "localhost:18332"
 RpcClientEndpoint					= "ws"
 RpcClientUser			  			= "testuser"
-RpcClientPass 						= "notarychain"
+RpcClientPass 						= "SecurePassHere"
 BtcTransFee				  			= 0.0001
 CertHomePathBtcd					= "btcd"
 RpcBtcdHost 			  			= "localhost:18334"
 RpcUser                             = "testuser"
-RpcPass                             = "notarychain"
+RpcPass                             = "SecurePassHere"
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
 ; ------------------------------------------------------------------------------
