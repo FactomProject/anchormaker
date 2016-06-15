@@ -28,7 +28,6 @@ import (
 	"github.com/btcsuitereleases/btcutil"
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/FactomProject/FactomCode/util"
 	factomwire "github.com/FactomProject/FactomCode/wire"
 )
 
@@ -36,7 +35,7 @@ var (
 	zeroID           = "0000000000000000000000000000000000000000000000000000000000000000"
 	myMonitor        = Monitor{Height: 0}
 	balances         []balance // unspent balance & address & its WIF
-	cfg              *util.FactomdConfig
+	cfg              *anchorConfig
 	dclient, wclient *btcrpcclient.Client
 	dirBlockInfoMap  = make(map[string]*common.DirBlockInfo) //DBMerkleRoot string as key
 	db               database.Db
@@ -224,7 +223,6 @@ func loadBlocksStartingAt(startBlockKeyMR string) {
 	sleepCounter := 0
 	for nextKeyMR != myMonitor.BlockHead && nextKeyMR != zeroID {
 		saveKeyMR = (nextKeyMR + " ")[:len(nextKeyMR)]
-		fmt.Println("Fetching block:", nextKeyMR)
 		nextKeyMR = processBlock(saveKeyMR)
 		sleepCounter++
 		if sleepCounter%1000 == 0 {
@@ -263,7 +261,7 @@ func GetDBlockFromFactom(keyMR string) (*DBlock, error) {
 
 	answer.KeyMR = keyMR
 
-	fmt.Println("GOT BLOCK:", answer)
+	//fmt.Println("GOT BLOCK:", answer)
 
 	return answer, nil
 }
@@ -592,7 +590,7 @@ func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey com
 
 func readConfig() {
 	anchorLog.Info("readConfig")
-	cfg = util.ReadConfig()
+	cfg = readAnchorConfig()
 	confirmationsNeeded = cfg.Anchor.ConfirmationsNeeded
 	fee, _ = btcutil.NewAmount(cfg.Btc.BtcTransFee)
 
@@ -689,6 +687,7 @@ func (u ByAmount) Less(i, j int) bool { return u[i].unspentResult.Amount < u[j].
 func (u ByAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
 
 func updateUTXO(base btcutil.Amount) error {
+	fmt.Println("UUTXO")
 	anchorLog.Info("updateUTXO: base=", base.ToBTC())
 	if wclient == nil {
 		anchorLog.Info("updateUTXO: wclient is nil")
@@ -696,16 +695,21 @@ func updateUTXO(base btcutil.Amount) error {
 	}
 	err := unlockWallet(int64(6)) //600
 	if err != nil {
+		fmt.Println("UUTXO1:", err)
 		return fmt.Errorf("%s", err)
 	}
 
 	unspentResults, err := wclient.ListUnspentMin(confirmationsNeeded) //minConf=1
 	if err != nil {
+		fmt.Println("UUTXO2:", err)
+
 		return fmt.Errorf("cannot list unspent. %s", err)
 	}
 	anchorLog.Info("updateUTXO: unspentResults.len=", len(unspentResults))
 
 	if len(unspentResults) > 0 {
+		fmt.Println("UUTXO3:")
+
 		balances = make([]balance, 0, len(unspentResults))
 		// var i int
 		for _, b := range unspentResults {
@@ -719,6 +723,7 @@ func updateUTXO(base btcutil.Amount) error {
 
 	// Sort eligible balances so that we first pick the ones with highest one
 	sort.Sort(sort.Reverse(ByAmount(balances)))
+	fmt.Println("UUTXO4")
 
 	for i, b := range balances {
 		addr, err := btcutil.DecodeAddress(b.unspentResult.Address, &chaincfg.TestNet3Params)
