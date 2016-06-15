@@ -383,8 +383,6 @@ func createRawTransaction(b balance, hash []byte, blockHeight uint32) (*wire.Msg
 	}
 
 	if err := validateMsgTx(msgtx, []btcjson.ListUnspentResult{b.unspentResult}); err != nil {
-		fmt.Printf("VALERRRRRRRRR\n%+v\n", b.unspentResult)
-		fmt.Println(b.address.String())
 		return nil, fmt.Errorf("cannot validateMsgTx: %s", err)
 	}
 
