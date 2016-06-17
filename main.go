@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -20,6 +21,7 @@ import (
 	"github.com/FactomProject/FactomCode/database/ldb"
 	"github.com/FactomProject/FactomCode/factomlog"
 	"github.com/FactomProject/factom"
+	"github.com/FactomProject/factomizer/primitives"
 
 	"github.com/btcsuitereleases/btcd/btcjson"
 	"github.com/btcsuitereleases/btcd/chaincfg"
@@ -59,6 +61,7 @@ var (
 	serverECKey common.PrivateKey
 	//Anchor chain ID
 	anchorChainID *common.Hash
+
 	//Logger
 	anchorLog *factomlog.FLogger
 	//InmsgQ for submitting the entry to server
@@ -102,31 +105,6 @@ type AnchorRecord struct {
 	}
 }
 
-/*func main() {
-	fmt.Println("=======================")
-	fmt.Println("grabbing chain:", AnchorChainID)
-	fmt.Println("=======================")
-	firstEntry, err := factom.GetFirstEntry(AnchorChainID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(firstEntry)
-	//factom.DB
-	myChain, err := factom.GetAllChainEntries(AnchorChainID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("GO")
-
-	for i, entry := range myChain {
-		if i > 100 {
-			break
-		}
-		fmt.Println(entry.String())
-
-	}
-}*/
-
 func initDB(ldbpath string) {
 	//init db
 	var err error
@@ -159,6 +137,74 @@ func initServerKeys() {
 	serverPubKey = serverPrivKey.Pub
 }
 
+func getValidAnchors() {
+	es, _ := factom.GetAllChainEntries(anchorChainID.String())
+
+	for _, e := range es {
+		validateAndSaveAnchor(e)
+	}
+}
+
+func validateAndSaveAnchor(e *factom.Entry) {
+	if !isAnchorSigned(e.Content) {
+		fmt.Println("Anchor record", hex.EncodeToString(e.Hash()), "lacks proper signature")
+		return
+	}
+	//making it this far means that the anchor entry is properly signed
+
+	var anchor AnchorRecord
+	justContent := e.Content[:(len(e.Content) - 128)]
+	if err := json.Unmarshal(justContent, &anchor); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	dbmr, err := common.HexToHash(anchor.KeyMR)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fetchTry, err := db.FetchDirBlockInfoByHash(dbmr)
+	if err != nil || fetchTry == nil {
+		dirBlockInfo := &common.DirBlockInfo{}
+		dirBlockInfo.DBHash = dbmr
+		dirBlockInfo.DBHeight = anchor.DBHeight
+		dirBlockInfo.Timestamp = time.Now().Unix()
+		dirBlockInfo.DBMerkleRoot = dbmr
+		dirBlockInfo.BTCConfirmed = true
+		btcTxHash, err := common.HexToHash(anchor.Bitcoin.TXID)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		btcBlockHash, err := common.HexToHash(anchor.Bitcoin.BlockHash)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		dirBlockInfo.BTCTxHash = btcTxHash
+		dirBlockInfo.BTCBlockHash = btcBlockHash
+		dirBlockInfo.BTCBlockHeight = anchor.Bitcoin.BlockHeight
+		dirBlockInfo.BTCTxOffset = anchor.Bitcoin.Offset
+		db.InsertDirBlockInfo(dirBlockInfo)
+	}
+}
+
+func isAnchorSigned(entryContent []byte) bool {
+	contentString := hex.EncodeToString(entryContent)
+	if len(contentString) <= 256 {
+		return false
+	}
+	entryHexString := contentString[:(len(contentString) - 256)]
+	sigHexString := contentString[(len(contentString) - 256):]
+	signedContent, _ := hex.DecodeString(entryHexString)
+	encodedSigContent, _ := hex.DecodeString(sigHexString)
+	sigHex, _ := hex.DecodeString(string(encodedSigContent))
+
+	return primitives.SigIsValid(sigHex, cfg.Anchor.AnchorSigPublicKey, signedContent)
+}
+
 func main() {
 	readConfig()
 	anchorLog.Info("Anchormaker: Initializing db...\n")
@@ -166,6 +212,7 @@ func main() {
 	initDB(cfg.App.LdbPath)
 	fmt.Printf("Anchormaker: Starting synchWithFactomState...\n")
 
+	getValidAnchors()
 	//go synchWithFactomState()
 	InitAnchor(db, inMsgQ, serverPrivKey)
 	synchWithFactomState()
@@ -211,15 +258,11 @@ func loadRemainingBlocks() error {
 	} else {
 		loadBlocksStartingAt(myMonitor.DeepestBlock)
 	}
-
 	//processRemainingAnchors()
 	return nil
 }
 
 func loadBlocksStartingAt(startBlockKeyMR string) {
-	if len(dblocks) > 5 {
-		checkMissingDirBlockInfo()
-	}
 	saveKeyMR := ""
 	nextKeyMR := startBlockKeyMR
 	sleepCounter := 0
@@ -234,6 +277,7 @@ func loadBlocksStartingAt(startBlockKeyMR string) {
 		myMonitor.DeepestBlock = saveKeyMR
 	}
 	myMonitor.DeepestBlock = zeroID
+	go checkMissingDirBlockInfo()
 }
 
 func processBlock(keyMR string) string {
@@ -270,12 +314,11 @@ func GetDBlockFromFactom(keyMR string) (*DBlock, error) {
 
 func checkMissingDirBlockInfo() {
 	//dblocks, _ := db.FetchAllDBlocks()
-
 	dirBlockInfoMap2, err := db.FetchAllDirBlockInfo()
 	if err != nil {
 		fmt.Println("FETCH DBIM:", err)
 	}
-	fmt.Println(len(dirBlockInfoMap2))
+
 	for _, dblock := range dblocks {
 		if _, ok := dirBlockInfoMap2[dblock.KeyMR]; ok {
 			// anchorLog.Debug("Existing dirBlock.KeyMR", dblock.KeyMR.String())
@@ -294,9 +337,7 @@ func checkMissingDirBlockInfo() {
 			/*dirBlockInfo := common.NewDirBlockInfoFromDBlock(&dblock)
 			dirBlockInfo.Timestamp = time.Now().Unix()
 			db.InsertDirBlockInfo(dirBlockInfo)*/
-			dirBlockInfoMap[dirBlockInfo.DBMerkleRoot.String()] = dirBlockInfo
-			db.InsertDirBlockInfo(dirBlockInfo)
-
+			UpdateDirBlockInfoMap(dirBlockInfo)
 		}
 	}
 	//fmt.Println(dirBlockInfoMap)
@@ -536,7 +577,6 @@ func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
 // and load up unconfirmed DirBlockInfo from leveldb
 func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey common.PrivateKey) {
 	anchorLog.Debug("InitAnchor")
-	fmt.Println("INITANCHOR")
 	db = ldb
 	inMsgQ = q
 	serverPrivKey = serverKey
@@ -559,7 +599,7 @@ func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey com
 		updateUTXO(minBalance)
 	}
 
-	ticker0 := time.NewTicker(time.Second * time.Duration(4))
+	ticker0 := time.NewTicker(time.Second * time.Duration(10))
 	go func() {
 		for _ = range ticker0.C {
 			if wclient != nil && dclient != nil {
