@@ -19,7 +19,12 @@ Finally, in order for anchormaker to be able to make entries into Factom, you mu
 Running Anchormaker
 --------
 
-First, make sure that both factomd and fctwallet are running.
+First, make sure that both factomd and fctwallet are running:
+
+```
+factomd
+fctwallet
+```
 
 
 **Note: Because this program will automatically write anchor records to the anchor chain [df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604](http://explorer.factom.org/chain/df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604), it is recommended that you run this program on a Factom sandbox, rather than on the live mainnet.**
@@ -32,7 +37,12 @@ echo "This is the Factom anchor chain, which records the anchors Factom puts on 
 
 (The example above assumes you have an entry credit address in your wallet named "e1")
 
-Next, make sure that btcd and btcwallet are also running.
+Next, make sure that btcd and btcwallet are also running:
+
+```
+btcd
+btcwallet
+```
 
 In a new terminal window, after btcd and btcwallet are fully synchronized with the Bitcoin blockchain, run:
 
