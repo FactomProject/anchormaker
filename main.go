@@ -30,8 +30,6 @@ import (
 	"github.com/btcsuitereleases/btcrpcclient"
 	"github.com/btcsuitereleases/btcutil"
 	"github.com/davecgh/go-spew/spew"
-
-	factomwire "github.com/FactomProject/FactomCode/wire"
 )
 
 var (
@@ -58,14 +56,12 @@ var (
 	serverPubKey     common.PublicKey
 
 	//Server Entry Credit private key
-	serverECKey common.PrivateKey
+	//serverECKey common.PrivateKey
 	//Anchor chain ID
 	anchorChainID *common.Hash
 
 	//Logger
 	anchorLog *factomlog.FLogger
-	//InmsgQ for submitting the entry to server
-	inMsgQ = make(chan factomwire.FtmInternalMsg, 100) //incoming message queue for factom application messages
 )
 
 type Monitor struct {
@@ -214,7 +210,7 @@ func main() {
 
 	getValidAnchors()
 	//go synchWithFactomState()
-	InitAnchor(db, inMsgQ, serverPrivKey)
+	InitAnchor(db, serverPrivKey)
 	synchWithFactomState()
 }
 
@@ -259,6 +255,7 @@ func loadRemainingBlocks() error {
 		loadBlocksStartingAt(myMonitor.DeepestBlock)
 	}
 	//processRemainingAnchors()
+	go checkMissingDirBlockInfo()
 	return nil
 }
 
@@ -277,7 +274,6 @@ func loadBlocksStartingAt(startBlockKeyMR string) {
 		myMonitor.DeepestBlock = saveKeyMR
 	}
 	myMonitor.DeepestBlock = zeroID
-	go checkMissingDirBlockInfo()
 }
 
 func processBlock(keyMR string) string {
@@ -307,8 +303,6 @@ func GetDBlockFromFactom(keyMR string) (*DBlock, error) {
 
 	answer.KeyMR = keyMR
 
-	//fmt.Println("GOT BLOCK:", answer)
-
 	return answer, nil
 }
 
@@ -334,9 +328,7 @@ func checkMissingDirBlockInfo() {
 			dirBlockInfo.BTCTxHash = common.NewHash()
 			dirBlockInfo.BTCBlockHash = common.NewHash()
 
-			/*dirBlockInfo := common.NewDirBlockInfoFromDBlock(&dblock)
-			dirBlockInfo.Timestamp = time.Now().Unix()
-			db.InsertDirBlockInfo(dirBlockInfo)*/
+			fmt.Println("UPDATING DBIM!", dirBlockInfo.DBHash.String())
 			UpdateDirBlockInfoMap(dirBlockInfo)
 		}
 	}
@@ -533,7 +525,7 @@ func validateMsgTx(msgtx *wire.MsgTx, inputs []btcjson.ListUnspentResult) error 
 }
 
 func sendRawTransaction(msgtx *wire.MsgTx) (*wire.ShaHash, error) {
-	//anchorLog.Debug("sendRawTransaction: msgTx=", spew.Sdump(msgtx))
+	anchorLog.Debug("sendRawTransaction: msgTx=", spew.Sdump(msgtx))
 	buf := bytes.Buffer{}
 	buf.Grow(msgtx.SerializeSize())
 	if err := msgtx.BtcEncode(&buf, wire.ProtocolVersion); err != nil {
@@ -563,6 +555,7 @@ func createBtcwalletNotificationHandlers() btcrpcclient.NotificationHandlers {
 func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
 	ntfnHandlers := btcrpcclient.NotificationHandlers{
 		OnRedeemingTx: func(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
+			fmt.Println("ONREDEM")
 			if details != nil {
 				// do not block OnRedeemingTx callback
 				//anchorLog.Info(" saveDirBlockInfo.")
@@ -575,10 +568,9 @@ func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
 
 // InitAnchor inits rpc clients for factom
 // and load up unconfirmed DirBlockInfo from leveldb
-func InitAnchor(ldb database.Db, q chan factomwire.FtmInternalMsg, serverKey common.PrivateKey) {
+func InitAnchor(ldb database.Db, serverKey common.PrivateKey) {
 	anchorLog.Debug("InitAnchor")
 	db = ldb
-	inMsgQ = q
 	serverPrivKey = serverKey
 	minBalance, _ = btcutil.NewAmount(0.01)
 
@@ -640,10 +632,10 @@ func readConfig() {
 
 	//Added anchor parameters
 	var err error
-	serverECKey, err = common.NewPrivateKeyFromHex(cfg.Anchor.ServerECKey)
+	/*serverECKey, err = common.NewPrivateKeyFromHex(cfg.Anchor.ServerECKey)
 	if err != nil {
 		panic("Cannot parse Server EC Key from configuration file: " + err.Error())
-	}
+	}*/
 	anchorChainID, err = common.HexToHash(cfg.Anchor.AnchorChainID)
 	// anchorLog.Debug("anchorChainID: ", anchorChainID)
 	if err != nil || anchorChainID == nil {
@@ -834,7 +826,7 @@ func doSaveDirBlockInfo(transaction *btcutil.Tx, details *btcjson.BlockDetails, 
 	// to make factom / explorer more user friendly, instead of waiting for
 	// over 2 hours to know if it's anchored, we can create the anchor chain instantly
 	// then change it when the btc main chain re-org happens.
-	saveToAnchorChain(dirBlockInfo)
+	go saveToAnchorChain(dirBlockInfo)
 }
 
 func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
@@ -845,7 +837,9 @@ func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
 	anchorRec.KeyMR = dirBlockInfo.DBMerkleRoot.String()
 	_, recordHeight, _ := db.FetchBlockHeightCache()
 	anchorRec.RecordHeight = uint32(recordHeight + 1) // need the next block height
-	anchorRec.Bitcoin.Address = defaultAddress.String()
+	if defaultAddress != nil {
+		anchorRec.Bitcoin.Address = defaultAddress.String()
+	}
 	anchorRec.Bitcoin.TXID = dirBlockInfo.BTCTxHash.BTCString()
 	anchorRec.Bitcoin.BlockHeight = dirBlockInfo.BTCBlockHeight
 	anchorRec.Bitcoin.BlockHash = dirBlockInfo.BTCBlockHash.BTCString()
@@ -955,7 +949,7 @@ func checkConfirmations(dirBlockInfo *common.DirBlockInfo) error {
 		anchorLog.Debugf("Fully confirmed %d times. txid=%s, dirblockInfo=%s\n", txResult.Confirmations, txResult.TxID, spew.Sdump(dirBlockInfo))
 		if rewrite {
 			anchorLog.Debug("rewrite to anchor chain: ", spew.Sdump(dirBlockInfo))
-			saveToAnchorChain(dirBlockInfo)
+			go saveToAnchorChain(dirBlockInfo)
 		}
 	}
 	return nil
@@ -999,4 +993,36 @@ func checkTxMalleation(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
 			break
 		}
 	}
+}
+
+//Construct the entry and submit it to the server
+func submitEntryToAnchorChain(aRecord *AnchorRecord) error {
+	//Marshal aRecord into json
+	jsonARecord, err := json.Marshal(aRecord)
+	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: ", string(jsonARecord))
+	if err != nil {
+		return err
+	}
+	bufARecord := new(bytes.Buffer)
+	bufARecord.Write(jsonARecord)
+	//Sign the json aRecord with the server key
+	aRecordSig := serverPrivKey.Sign(jsonARecord)
+	//Encode sig into Hex string
+	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Sig[:])))
+
+	entry := factom.NewEntry()
+	entry.ChainID = cfg.Anchor.AnchorChainID
+	entry.Content = bufARecord.Bytes()
+	err = primitives.JustFactomize(entry, cfg.Anchor.ServerECKey)
+
+	return err
+}
+
+// MilliTime returns a 6 byte slice representing the unix time in milliseconds
+func milliTime() (r []byte) {
+	buf := new(bytes.Buffer)
+	t := time.Now().UnixNano()
+	m := t / 1e6
+	binary.Write(buf, binary.BigEndian, m)
+	return buf.Bytes()[2:]
 }
