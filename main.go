@@ -255,7 +255,6 @@ func loadRemainingBlocks() error {
 		loadBlocksStartingAt(myMonitor.DeepestBlock)
 	}
 	//processRemainingAnchors()
-	go checkMissingDirBlockInfo()
 	return nil
 }
 
@@ -328,7 +327,6 @@ func checkMissingDirBlockInfo() {
 			dirBlockInfo.BTCTxHash = common.NewHash()
 			dirBlockInfo.BTCBlockHash = common.NewHash()
 
-			fmt.Println("UPDATING DBIM!", dirBlockInfo.DBHash.String())
 			UpdateDirBlockInfoMap(dirBlockInfo)
 		}
 	}
@@ -555,7 +553,6 @@ func createBtcwalletNotificationHandlers() btcrpcclient.NotificationHandlers {
 func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
 	ntfnHandlers := btcrpcclient.NotificationHandlers{
 		OnRedeemingTx: func(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
-			fmt.Println("ONREDEM")
 			if details != nil {
 				// do not block OnRedeemingTx callback
 				//anchorLog.Info(" saveDirBlockInfo.")
