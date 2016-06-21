@@ -46,6 +46,7 @@ var (
 	tenMinutes       = 10 // 10 minute mark
 	defaultAddress   btcutil.Address
 	minBalance       btcutil.Amount
+	noBalanceString  = "\n\n$$$ WARNING: No balance in your wallet. No anchoring for now.\n"
 
 	fee                 btcutil.Amount // tx fee for written into btc
 	confirmationsNeeded int
@@ -395,7 +396,7 @@ func sanityCheck(hash *common.Hash) (*common.DirBlockInfo, error) {
 		updateUTXO(fee)
 	}
 	if len(balances) == 0 {
-		s := fmt.Sprintf("\n\n$$$ WARNING: No balance in your wallet. No anchoring for now.\n")
+		s := fmt.Sprintf(noBalanceString)
 		anchorLog.Warning(s)
 		return nil, errors.New(s)
 	}
@@ -588,7 +589,7 @@ func InitAnchor(ldb database.Db, serverKey common.PrivateKey) {
 		updateUTXO(minBalance)
 	}
 
-	ticker0 := time.NewTicker(time.Second * time.Duration(10))
+	ticker0 := time.NewTicker(time.Second * time.Duration(100))
 	go func() {
 		for _ = range ticker0.C {
 			if wclient != nil && dclient != nil {
@@ -880,7 +881,10 @@ func checkForAnchor() {
 	for _, dirBlockInfo := range dirBlockInfos {
 		if bytes.Compare(dirBlockInfo.BTCTxHash.Bytes(), common.NewHash().Bytes()) == 0 {
 			anchorLog.Debug("first time anchor: ", spew.Sdump(dirBlockInfo))
-			SendRawTransactionToBTC(dirBlockInfo.DBMerkleRoot, dirBlockInfo.DBHeight)
+			_, err := SendRawTransactionToBTC(dirBlockInfo.DBMerkleRoot, dirBlockInfo.DBHeight)
+			if err != nil && strings.Compare(err.Error(), noBalanceString) == 0 {
+				break
+			}
 		} else {
 			// This is the re-anchor case for the missed callback or malleated tx,
 			// that is, it has BTCTxHash and/or BTCBlockHash, BTCBlockHeight etc but
@@ -888,7 +892,10 @@ func checkForAnchor() {
 			lapse := timeNow - dirBlockInfo.Timestamp
 			if lapse > int64(time0) {
 				anchorLog.Debugf("re-anchor: time lapse=%d, %s\n", lapse, spew.Sdump(dirBlockInfo))
-				SendRawTransactionToBTC(dirBlockInfo.DBMerkleRoot, dirBlockInfo.DBHeight)
+				_, err := SendRawTransactionToBTC(dirBlockInfo.DBMerkleRoot, dirBlockInfo.DBHeight)
+				if err != nil && strings.Compare(err.Error(), noBalanceString) == 0 {
+					break
+				}
 			}
 		}
 	}
