@@ -229,7 +229,7 @@ func synchWithFactomState() {
 				os.Exit(1)
 			}
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(100 * time.Second)
 	}
 }
 
@@ -256,21 +256,16 @@ func loadRemainingBlocks() error {
 		loadBlocksStartingAt(myMonitor.DeepestBlock)
 	}
 	//processRemainingAnchors()
+	go checkMissingDirBlockInfo()
 	return nil
 }
 
 func loadBlocksStartingAt(startBlockKeyMR string) {
 	saveKeyMR := ""
 	nextKeyMR := startBlockKeyMR
-	sleepCounter := 0
 	for nextKeyMR != myMonitor.BlockHead && nextKeyMR != zeroID {
 		saveKeyMR = (nextKeyMR + " ")[:len(nextKeyMR)]
 		nextKeyMR = processBlock(saveKeyMR)
-		sleepCounter++
-		if sleepCounter%1000 == 0 {
-			time.Sleep(10 * time.Second)
-		}
-
 		myMonitor.DeepestBlock = saveKeyMR
 	}
 	myMonitor.DeepestBlock = zeroID
@@ -864,7 +859,7 @@ func toShaHash(hash *common.Hash) *wire.ShaHash {
 // UpdateDirBlockInfoMap allows factom processor to update DirBlockInfo
 // when a new Directory Block is saved to db
 func UpdateDirBlockInfoMap(dirBlockInfo *common.DirBlockInfo) {
-	anchorLog.Debug("UpdateDirBlockInfoMap: ", spew.Sdump(dirBlockInfo))
+	//anchorLog.Debug("UpdateDirBlockInfoMap: ", spew.Sdump(dirBlockInfo))
 	dirBlockInfoMap[dirBlockInfo.DBMerkleRoot.String()] = dirBlockInfo
 }
 
