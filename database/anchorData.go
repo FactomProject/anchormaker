@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"encoding/gob"
 	"fmt"
 
@@ -37,6 +38,23 @@ type AnchorDataBase struct {
 
 type AnchorData struct {
 	AnchorDataBase
+}
+
+func (e *AnchorData) JSONByte() ([]byte, error) {
+	return primitives.EncodeJSON(e)
+}
+
+func (e *AnchorData) JSONString() (string, error) {
+	return primitives.EncodeJSONString(e)
+}
+
+func (e *AnchorData) JSONBuffer(b *bytes.Buffer) error {
+	return primitives.EncodeJSONToBuffer(e, b)
+}
+
+func (e *AnchorData) String() string {
+	str, _ := e.JSONString()
+	return str
 }
 
 var _ interfaces.DatabaseBatchable = (*AnchorData)(nil)

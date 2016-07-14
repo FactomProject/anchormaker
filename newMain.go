@@ -5,6 +5,7 @@ import (
 
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/database"
+	"github.com/FactomProject/factomd/anchor"
 	"github.com/FactomProject/factomd/common/interfaces"
 )
 
@@ -87,6 +88,12 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 					}
 					fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
+					ar, err := anchor.UnmarshalAnchorRecord(entry.GetContent())
+					if err != nil {
+						panic(err)
+					}
+					fmt.Printf("anchor - %v\n", ar)
+
 				}
 			}
 		}
