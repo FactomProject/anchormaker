@@ -8,6 +8,9 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
+var WalletAddress string = "0x838F9b4d8EA3ff2F1bD87B13684f59c4C57A618b"
+var ContractAddress string = "0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18"
+
 func main() {
 	ver, err := EthereumAPI.EthProtocolVersion()
 	if err != nil {
@@ -36,8 +39,8 @@ func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
 	data += hash
 
 	tx := new(EthereumAPI.TransactionObject)
-	tx.From = "0x838F9b4d8EA3ff2F1bD87B13684f59c4C57A618b"
-	tx.To = "0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18"
+	tx.From = WalletAddress
+	tx.To = ContractAddress
 	tx.Gas = "0x10FFFF"
 	tx.Data = data
 
@@ -60,8 +63,8 @@ func GetAnchorData(height int64) (string, string, error) {
 	data += EthereumAPI.IntToData(height)
 
 	tx := new(EthereumAPI.TransactionObject)
-	tx.From = "0x838F9b4d8EA3ff2F1bD87B13684f59c4C57A618b"
-	tx.To = "0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18"
+	tx.From = WalletAddress
+	tx.To = ContractAddress
 	tx.Gas = "0x10FFFF"
 	tx.Data = data
 
@@ -83,10 +86,8 @@ func GetTransaction(txHash string) {
 	fmt.Printf("data - %v\n", data)
 }
 
-//https://testnet.etherscan.io/apis
-//https://testnet.etherscan.io/api?module=account&action=txlist&address=0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18&startblock=0&endblock=99999999&sort=asc&apikey=YourApiKeyToken
 func GetContractTransactions() {
-	data, err := EthereumAPI.EtherscanTxList("0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18")
+	data, err := EthereumAPI.EtherscanTxList(ContractAddress)
 	if err != nil {
 		fmt.Printf("err - %v", err)
 		return // "", "", err
