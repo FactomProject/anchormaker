@@ -1,6 +1,8 @@
 package database
 
 import (
+	"fmt"
+
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/database/databaseOverlay"
 	"github.com/FactomProject/factomd/database/mapdb"
@@ -22,7 +24,7 @@ func NewMapDB() *AnchorDatabaseOverlay {
 	return NewAnchorOverlay(new(mapdb.MapDB))
 }
 
-func (db *AnchorDatabaseOverlay) InsertAnchorData(data *AnchorData) error {
+func (db *AnchorDatabaseOverlay) InsertAnchorData(data *AnchorData, isHead bool) error {
 	if data == nil {
 		return nil
 	}
@@ -31,7 +33,7 @@ func (db *AnchorDatabaseOverlay) InsertAnchorData(data *AnchorData) error {
 
 	batch := []interfaces.Record{}
 	batch = append(batch, interfaces.Record{AnchorDataStr, height.Bytes(), data})
-	if data.IsComplete() {
+	if isHead {
 		//Chain head consists only of records anchored in both Bitcoin and Ethereum
 		batch = append(batch, interfaces.Record{CHAIN_HEAD, data.GetChainID().Bytes(), height})
 	}
@@ -62,4 +64,65 @@ func (db *AnchorDatabaseOverlay) FetchAnchorDataHead() (*AnchorData, error) {
 		return nil, nil
 	}
 	return block.(*AnchorData), nil
+}
+
+func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
+	fmt.Printf("UpdateAnchorDataHead\n")
+	ad, err := db.FetchAnchorDataHead()
+	if err != nil {
+		return err
+	}
+	var nextCheck uint32
+	if ad == nil {
+		nextCheck = 0
+	} else {
+		nextCheck = ad.DBlockHeight + 1
+	}
+	fmt.Printf("nextCheck - %v\n", nextCheck)
+	head := ad
+	for {
+		ad, err = db.FetchAnchorData(nextCheck)
+		if err != nil {
+			return err
+		}
+		if ad.IsComplete() {
+			fmt.Printf("%v is complete\n", nextCheck)
+			head = ad
+		} else {
+			fmt.Printf("%v is not complete\n", nextCheck)
+			//First AnchorData that is not complete ends the chain
+			break
+		}
+		nextCheck++
+	}
+	if head != nil {
+		err = db.InsertAnchorData(head, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (db *AnchorDatabaseOverlay) InsertProgramState(data *ProgramState) error {
+	if data == nil {
+		return nil
+	}
+
+	batch := []interfaces.Record{}
+	batch = append(batch, interfaces.Record{ProgramStateStr, ProgramStateStr, data})
+
+	return db.PutInBatch(batch)
+}
+
+func (db *AnchorDatabaseOverlay) FetchProgramState() (*ProgramState, error) {
+	data, err := db.DB.Get(ProgramStateStr, ProgramStateStr, new(ProgramState))
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return new(ProgramState), nil
+	}
+	return data.(*ProgramState), nil
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/database"
+
 	"github.com/FactomProject/factomd/anchor"
 	"github.com/FactomProject/factomd/common/interfaces"
 )
@@ -20,6 +21,17 @@ func main() {
 	fmt.Printf("anchorData - %v\n", anchorData)
 
 	SynchronizeFactomData(dbo)
+
+	anchorData, err = dbo.FetchAnchorDataHead()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("anchorDataHead - %v\n", anchorData)
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("ps - %v\n", ps)
 }
 
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
@@ -32,6 +44,13 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 	if anchorData != nil {
 		endKeyMR = anchorData.DBlockKeyMR
 		startHeight = int(anchorData.DBlockHeight)
+	}
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		panic(err)
+	}
+	if ps.LastFactomDBlockChecked != "" {
+		endKeyMR = ps.LastFactomDBlockChecked
 	}
 
 	dBlockHead, err := api.GetDBlockHead()
@@ -51,6 +70,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 	for {
 		keymr := dBlock.GetHeader().GetPrevKeyMR().String()
 		if keymr == endKeyMR {
+			startHeight = int(dBlock.GetDatabaseHeight())
 			break
 		}
 		dBlock, err = api.GetDBlock(keymr)
@@ -94,8 +114,30 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 					}
 					fmt.Printf("anchor - %v\n", ar)
 
+					anchorData, err = dbo.FetchAnchorData(ar.DBHeight)
+					if err != nil {
+						panic(err)
+					}
+					if anchorData.DBlockKeyMR != ar.KeyMR {
+						panic("AnchorData KeyMR does not match AnchorRecord KeyMR")
+					}
+
+					anchorData.Bitcoin.Address = ar.Bitcoin.Address
+					anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
+					anchorData.Bitcoin.BlockHeight = ar.Bitcoin.BlockHeight
+					anchorData.Bitcoin.BlockHash = ar.Bitcoin.BlockHash
+					anchorData.Bitcoin.Offset = ar.Bitcoin.Offset
+
+					anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
+					anchorData.BitcoinRecordEntryHash = eh.String()
+					err = dbo.InsertAnchorData(anchorData, false)
+					if err != nil {
+						panic(err)
+					}
 				}
 			}
+
+			//TODO: look for Ethereum anchors
 		}
 
 		//Updating new directory blocks
@@ -107,10 +149,22 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 			anchorData := new(database.AnchorData)
 			anchorData.DBlockHeight = dBlock.GetDatabaseHeight()
 			anchorData.DBlockKeyMR = dBlock.GetKeyMR().String()
-			err = dbo.InsertAnchorData(anchorData)
+			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
 				panic(err)
 			}
 		}
+	}
+
+	err = dbo.UpdateAnchorDataHead()
+	if err != nil {
+		panic(err)
+	}
+
+	ps.LastFactomDBlockChecked = dBlockHead
+
+	err = dbo.InsertProgramState(ps)
+	if err != nil {
+		panic(err)
 	}
 }

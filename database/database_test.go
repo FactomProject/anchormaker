@@ -13,7 +13,7 @@ func TestAnchorDatabaseOverlay(t *testing.T) {
 	ad.EthereumRecordHeight = 3
 
 	dbo := NewMapDB()
-	err := dbo.InsertAnchorData(ad)
+	err := dbo.InsertAnchorData(ad, true)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -22,7 +22,7 @@ func TestAnchorDatabaseOverlay(t *testing.T) {
 	ad2.DBlockHeight = 3
 	ad2.BitcoinRecordHeight = 4
 
-	err = dbo.InsertAnchorData(ad2)
+	err = dbo.InsertAnchorData(ad2, false)
 	if err != nil {
 		t.Errorf("%v", err)
 	}

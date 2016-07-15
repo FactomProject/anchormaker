@@ -15,8 +15,10 @@ type AnchorDataBase struct {
 	DBlockKeyMR  string
 	DBlockHeight uint32
 
-	BitcoinRecordHeight  uint32
-	EthereumRecordHeight uint32
+	BitcoinRecordHeight     uint32
+	BitcoinRecordEntryHash  string
+	EthereumRecordHeight    uint32
+	EthereumRecordEntryHash string
 
 	Bitcoin struct {
 		Address     string //"1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1",
@@ -59,6 +61,10 @@ func (e *AnchorData) String() string {
 
 var _ interfaces.DatabaseBatchable = (*AnchorData)(nil)
 
+func (c *AnchorData) IsComplete() bool {
+	return (c.BitcoinRecordHeight > 0) //&& (c.EthereumRecordHeight > 0)
+}
+
 func (c *AnchorData) New() interfaces.BinaryMarshallableAndCopyable {
 	return new(AnchorData)
 }
@@ -93,10 +99,6 @@ func (e *AnchorData) GetChainID() interfaces.IHash {
 		panic(err)
 	}
 	return h
-}
-
-func (e *AnchorData) IsComplete() bool {
-	return e.BitcoinRecordHeight > 0 && e.EthereumRecordHeight > 0
 }
 
 func (e *AnchorData) MarshalBinary() ([]byte, error) {

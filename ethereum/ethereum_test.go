@@ -1,5 +1,6 @@
-package main
+package ethereum
 
+/*
 import (
 	"testing"
 	//. "github.com/FactomProject/factomd/testHelper"
@@ -10,3 +11,4 @@ func TestTest(t *testing.T) {
 	//GetAnchorData(0x06)
 	GetContractTransactions()
 }
+*/
