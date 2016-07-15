@@ -3,6 +3,7 @@ package ethereum
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/FactomProject/EthereumAPI"
 	"github.com/FactomProject/anchormaker/database"
@@ -10,10 +11,11 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
-var WalletAddress string = "0x838F9b4d8EA3ff2F1bD87B13684f59c4C57A618b"
-var ContractAddress string = "0x8A8FbaBBec1E99148083E9314dFfd82395dd8F18"
+var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
+var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) error {
+	fmt.Println("SynchronizeEthereumData")
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		return err
@@ -26,11 +28,14 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) error {
 
 	var lastBlock int64 = 0
 
+	fmt.Printf("Tx count - %v\n", len(txs))
+
 	for _, tx := range txs {
 		if Atoi(tx.BlockNumber) > lastBlock {
 			lastBlock = Atoi(tx.BlockNumber)
 		}
 		if tx.From != WalletAddress {
+			fmt.Printf("Not from our address - %v\n", tx.From)
 			//ignoring transactions that are not ours
 			continue
 		}
@@ -48,6 +53,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) error {
 					return fmt.Errorf("We have anchored block from outside of our DB")
 				}
 				if ad.DBlockKeyMR != keyMR {
+					fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
 					//return fmt.Errorf("We have anchored invalid KeyMR")
 					continue
 				}
@@ -68,9 +74,15 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) error {
 				if err != nil {
 					return err
 				}
+				fmt.Printf("Block %v is already anchored!\n", dbHeight)
+			} else {
+				fmt.Printf("Wrong prefix - %v\n", tx.Input[:10])
 			}
+		} else {
+			fmt.Printf("Wrong len - %v\n", len(tx.Input))
 		}
 	}
+	fmt.Printf("LastBlock - %v\n", lastBlock)
 
 	ps.LastEthereumBlockChecked = lastBlock
 	err = dbo.InsertProgramState(ps)
@@ -86,13 +98,18 @@ func Atoi(s string) int64 {
 	return i
 }
 
+func AtoiHex(s string) int64 {
+	i, _ := strconv.ParseInt(s, 16, 64)
+	return i
+}
+
 func ParseInput(input string) (dBlockHeight uint32, keyMR string, hash string) {
-	if len(tx.Input) == 202 {
-		if tx[:10] == "0xd36b1da5" {
-			tx = tx[10:]
-			dBlockHeight, tx = uint32(Atoi(tx[:64])), tx[64:]
-			keyMR, tx = tx[:64], tx[64:]
-			hash = tx[:64]
+	if len(input) == 202 {
+		if input[:10] == "0xd36b1da5" {
+			input = input[10:]
+			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
+			keyMR, input = input[:64], input[64:]
+			hash = input[:64]
 			return
 		}
 	}
@@ -100,17 +117,20 @@ func ParseInput(input string) (dBlockHeight uint32, keyMR string, hash string) {
 }
 
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
+	fmt.Println("AnchorBlocksIntoEthereum")
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		return err
 	}
 
+	var height uint32
 	if ad == nil {
-		return nil
+		height = 0
+	} else {
+		height = ad.DBlockHeight + 1
 	}
 
 	for {
-		height := ad.DBlockHeight + 1
 		ad, err = dbo.FetchAnchorData(height)
 		if err != nil {
 			return err
@@ -119,15 +139,24 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 		if ad.Ethereum.TxID != "" {
+			height = ad.DBlockHeight + 1
 			continue
 		}
 
-		fmt.Printf("Anchoring %v\n", height)
-		tx, err := AnchorBlock(ad.DBlockHeight, ad.DBlockKeyMR, ad.DBlockKeyMR)
+		//fmt.Printf("Anchoring %v\n", height)
+		time.Sleep(5 * time.Second)
+		tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR, ad.DBlockKeyMR)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Anchored %v\n", height)
+
+		ad.Ethereum.TxID = tx
+		err = dbo.InsertAnchorData(ad, false)
+		if err != nil {
+			return err
+		}
+		height = ad.DBlockHeight + 1
 	}
 
 	return nil
@@ -150,11 +179,11 @@ func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
 
 	txHash, err := EthereumAPI.EthSendTransaction(tx)
 
-	fmt.Printf("txHash - %v\n", txHash)
 	if err != nil {
 		fmt.Printf("err - %v", err)
 		return "", err
 	}
+	fmt.Printf("txHash - %v\n", txHash)
 
 	return txHash, nil
 }

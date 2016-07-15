@@ -5,6 +5,7 @@ import (
 
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/database"
+	"github.com/FactomProject/anchormaker/ethereum"
 
 	"github.com/FactomProject/factomd/anchor"
 	"github.com/FactomProject/factomd/common/interfaces"
@@ -32,6 +33,17 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("ps - %v\n", ps)
+
+	err = ethereum.SynchronizeEthereumData(dbo)
+	if err != nil {
+		panic(err)
+	}
+
+	err = ethereum.AnchorBlocksIntoEthereum(dbo)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
@@ -106,13 +118,13 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 					if err != nil {
 						panic(err)
 					}
-					fmt.Printf("Entry - %v\n", entry)
+					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
 					ar, err := anchor.UnmarshalAnchorRecord(entry.GetContent())
 					if err != nil {
 						panic(err)
 					}
-					fmt.Printf("anchor - %v\n", ar)
+					//fmt.Printf("anchor - %v\n", ar)
 
 					anchorData, err = dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
