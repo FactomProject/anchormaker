@@ -14,83 +14,96 @@ import (
 var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
 var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 
-func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) error {
+func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
+	txCount := 0
 	fmt.Println("SynchronizeEthereumData")
-	ps, err := dbo.FetchProgramState()
-	if err != nil {
-		return err
-	}
-
-	txs, err := EthereumAPI.EtherscanTxListWithStartBlock(ContractAddress, ps.LastEthereumBlockChecked)
-	if err != nil {
-		return err
-	}
-
-	var lastBlock int64 = 0
-
-	fmt.Printf("Tx count - %v\n", len(txs))
-
-	for _, tx := range txs {
-		if Atoi(tx.BlockNumber) > lastBlock {
-			lastBlock = Atoi(tx.BlockNumber)
+	for {
+		ps, err := dbo.FetchProgramState()
+		if err != nil {
+			return 0, err
 		}
-		if tx.From != WalletAddress {
-			fmt.Printf("Not from our address - %v\n", tx.From)
-			//ignoring transactions that are not ours
-			continue
+
+		txs, err := EthereumAPI.EtherscanTxListWithStartBlock(ContractAddress, ps.LastEthereumBlockChecked)
+		if err != nil {
+			return 0, err
 		}
-		//makign sure the input is of correct length
-		if len(tx.Input) == 202 {
-			//making sure the right function is called
-			if tx.Input[:10] == "0xd36b1da5" {
-				dbHeight, keyMR, _ := ParseInput(tx.Input)
 
-				ad, err := dbo.FetchAnchorData(dbHeight)
-				if err != nil {
-					return err
-				}
-				if ad == nil {
-					return fmt.Errorf("We have anchored block from outside of our DB")
-				}
-				if ad.DBlockKeyMR != keyMR {
-					fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
-					//return fmt.Errorf("We have anchored invalid KeyMR")
-					continue
-				}
-				if ad.EthereumRecordHeight > 0 {
-					continue
-				}
-				if ad.Ethereum.TxID != "" {
-					continue
-				}
+		if len(txs) == 0 {
+			break
+		}
 
-				ad.Ethereum.Address = tx.From
-				ad.Ethereum.TxID = tx.Hash
-				ad.Ethereum.BlockHeight = Atoi(tx.BlockNumber)
-				ad.Ethereum.BlockHash = tx.BlockHash
-				ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
+		var lastBlock int64 = 0
 
-				err = dbo.InsertAnchorData(ad, false)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("Block %v is already anchored!\n", dbHeight)
-			} else {
-				fmt.Printf("Wrong prefix - %v\n", tx.Input[:10])
+		fmt.Printf("Tx count - %v\n", len(txs))
+
+		for _, tx := range txs {
+			txCount++
+			if Atoi(tx.BlockNumber) > lastBlock {
+				lastBlock = Atoi(tx.BlockNumber)
 			}
+			if tx.From != WalletAddress {
+				fmt.Printf("Not from our address - %v\n", tx.From)
+				//ignoring transactions that are not ours
+				continue
+			}
+			//makign sure the input is of correct length
+			if len(tx.Input) == 202 {
+				//making sure the right function is called
+				if tx.Input[:10] == "0xd36b1da5" {
+					dbHeight, keyMR, _ := ParseInput(tx.Input)
+
+					ad, err := dbo.FetchAnchorData(dbHeight)
+					if err != nil {
+						return 0, err
+					}
+					if ad == nil {
+						return 0, fmt.Errorf("We have anchored block from outside of our DB")
+					}
+					if ad.DBlockKeyMR != keyMR {
+						fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
+						//return fmt.Errorf("We have anchored invalid KeyMR")
+						continue
+					}
+					if ad.EthereumRecordHeight > 0 {
+						continue
+					}
+					if ad.Ethereum.TxID != "" {
+						continue
+					}
+
+					ad.Ethereum.Address = tx.From
+					ad.Ethereum.TxID = tx.Hash
+					ad.Ethereum.BlockHeight = Atoi(tx.BlockNumber)
+					ad.Ethereum.BlockHash = tx.BlockHash
+					ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
+
+					err = dbo.InsertAnchorData(ad, false)
+					if err != nil {
+						return 0, err
+					}
+					fmt.Printf("Block %v is already anchored!\n", dbHeight)
+				} else {
+					fmt.Printf("Wrong prefix - %v\n", tx.Input[:10])
+				}
+			} else {
+				fmt.Printf("Wrong len - %v\n", len(tx.Input))
+			}
+		}
+		fmt.Printf("LastBlock - %v\n", lastBlock)
+
+		if len(txs) < 1000 {
+			//we have checked all transactions from the last block, so we can safely step over it
+			ps.LastEthereumBlockChecked = lastBlock + 1
 		} else {
-			fmt.Printf("Wrong len - %v\n", len(tx.Input))
+			ps.LastEthereumBlockChecked = lastBlock
+		}
+		err = dbo.InsertProgramState(ps)
+		if err != nil {
+			return 0, err
 		}
 	}
-	fmt.Printf("LastBlock - %v\n", lastBlock)
 
-	ps.LastEthereumBlockChecked = lastBlock
-	err = dbo.InsertProgramState(ps)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return txCount, nil
 }
 
 func Atoi(s string) int64 {
@@ -186,6 +199,10 @@ func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
 	fmt.Printf("txHash - %v\n", txHash)
 
 	return txHash, nil
+}
+
+func CheckBalance() (int64, error) {
+	return EthereumAPI.EthGetBalance(WalletAddress, EthereumAPI.Latest)
 }
 
 /*

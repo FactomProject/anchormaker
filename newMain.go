@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/database"
@@ -12,44 +14,66 @@ import (
 )
 
 func main() {
-
 	dbo := database.NewMapDB()
+	var interruptChannel chan os.Signal
+	interruptChannel = make(chan os.Signal, 1)
+	signal.Notify(interruptChannel, os.Interrupt)
 
-	anchorData, err := dbo.FetchAnchorDataHead()
-	if err != nil {
-		panic(err)
+	for {
+		//ensuring safe interruption
+		select {
+		case <-interruptChannel:
+			return
+		default:
+			err := SynchronizationLoop(dbo)
+			if err != nil {
+				panic(err)
+			}
+
+			err = ethereum.AnchorBlocksIntoEthereum(dbo)
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
-	fmt.Printf("anchorData - %v\n", anchorData)
-
-	SynchronizeFactomData(dbo)
-
-	anchorData, err = dbo.FetchAnchorDataHead()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("anchorDataHead - %v\n", anchorData)
-	ps, err := dbo.FetchProgramState()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ps - %v\n", ps)
-
-	err = ethereum.SynchronizeEthereumData(dbo)
-	if err != nil {
-		panic(err)
-	}
-
-	err = ethereum.AnchorBlocksIntoEthereum(dbo)
-	if err != nil {
-		panic(err)
-	}
-
 }
 
-func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
+//The loop that synchronizes AnchorMaker with all networks
+func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
+	fmt.Printf("SynchronizationLoop\n")
+	i := 0
+	for {
+		//Iterate until we are fully in synch with all of the networks
+		//Repeat iteration until there is nothing left to synch
+		//to make sure all of the networks are in synch at the same time
+		//(nothing has drifted apart while we were busy with other systems)
+		fmt.Printf("Loop %v\n", i)
+		blockCount, err := SynchronizeFactomData(dbo)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("blockCount - %v\n", blockCount)
+
+		txCount, err := ethereum.SynchronizeEthereumData(dbo)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("txCount - %v\n", txCount)
+
+		if (blockCount + txCount) == 0 {
+			break
+		}
+		i++
+	}
+	return nil
+}
+
+//Returns number of blocks synchronized
+func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
+	blockCount := 0
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	startHeight := 0
 	endKeyMR := "0000000000000000000000000000000000000000000000000000000000000000"
@@ -59,7 +83,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 	}
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	if ps.LastFactomDBlockChecked != "" {
 		endKeyMR = ps.LastFactomDBlockChecked
@@ -67,12 +91,17 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 
 	dBlockHead, err := api.GetDBlockHead()
 	if err != nil {
-		panic(err)
+		return 0, err
+	}
+
+	//already fully synchronized
+	if endKeyMR == dBlockHead {
+		return 0, nil
 	}
 
 	dBlock, err := api.GetDBlock(dBlockHead)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	fmt.Printf("dBlock - %v\n", dBlock)
 
@@ -87,10 +116,10 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 		}
 		dBlock, err = api.GetDBlock(keymr)
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
 		if dBlock == nil {
-			panic("dblock " + keymr + " not found")
+			return 0, fmt.Errorf("dblock " + keymr + " not found")
 		}
 
 		dBlockList[int(dBlock.GetDatabaseHeight())] = dBlock
@@ -104,7 +133,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 			if v.GetChainID().String() == "df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604" {
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
-					panic(err)
+					return 0, err
 				}
 				for _, eh := range entryBlock.GetEntryHashes() {
 					if eh.IsMinuteMarker() == true {
@@ -116,22 +145,22 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 					fmt.Printf("Fetching %v\n", eh.String())
 					entry, err := api.GetEntry(eh.String())
 					if err != nil {
-						panic(err)
+						return 0, err
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
 					ar, err := anchor.UnmarshalAnchorRecord(entry.GetContent())
 					if err != nil {
-						panic(err)
+						return 0, err
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 
 					anchorData, err = dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
-						panic(err)
+						return 0, err
 					}
 					if anchorData.DBlockKeyMR != ar.KeyMR {
-						panic("AnchorData KeyMR does not match AnchorRecord KeyMR")
+						return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
 					}
 
 					anchorData.Bitcoin.Address = ar.Bitcoin.Address
@@ -144,8 +173,9 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 					anchorData.BitcoinRecordEntryHash = eh.String()
 					err = dbo.InsertAnchorData(anchorData, false)
 					if err != nil {
-						panic(err)
+						return 0, err
 					}
+					blockCount++
 				}
 			}
 
@@ -155,7 +185,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 		//Updating new directory blocks
 		anchorData, err = dbo.FetchAnchorData(uint32(i))
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
 		if anchorData == nil {
 			anchorData := new(database.AnchorData)
@@ -163,20 +193,23 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) {
 			anchorData.DBlockKeyMR = dBlock.GetKeyMR().String()
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
-				panic(err)
+				return 0, err
 			}
+			blockCount++
 		}
 	}
 
 	err = dbo.UpdateAnchorDataHead()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	ps.LastFactomDBlockChecked = dBlockHead
 
 	err = dbo.InsertProgramState(ps)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
+
+	return blockCount, nil
 }
