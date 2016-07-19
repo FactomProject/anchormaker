@@ -13,9 +13,14 @@ import (
 )
 
 func main() {
-	dbo := database.NewMapDB()
-
 	c := config.ReadConfig()
+
+	//dbo := database.NewMapDB()
+	dbo, err := database.NewLevelDB(c.App.LdbPath)
+	if err != nil {
+		panic(err)
+	}
+
 	bitcoin.LoadConfig(c)
 	ethereum.LoadConfig(c)
 	factom.LoadConfig(c)

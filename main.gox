@@ -101,27 +101,6 @@ type AnchorRecord struct {
 	}
 }
 
-func initDB(ldbpath string) {
-	//init db
-	var err error
-	db, err = ldb.OpenLevelDB(ldbpath, false)
-
-	if err != nil {
-		fmt.Printf("err opening db: %v\n", err)
-
-	}
-
-	if db == nil {
-		fmt.Println("Creating new db ...")
-		db, err = ldb.OpenLevelDB(ldbpath, true)
-
-		if err != nil {
-			panic(err)
-		}
-	}
-	fmt.Println("Database started from: " + ldbpath)
-
-}
 
 func initServerKeys() {
 	var err error

@@ -5,6 +5,7 @@ import (
 
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/database/databaseOverlay"
+	"github.com/FactomProject/factomd/database/leveldb"
 	"github.com/FactomProject/factomd/database/mapdb"
 )
 
@@ -22,6 +23,24 @@ func NewAnchorOverlay(db interfaces.IDatabase) *AnchorDatabaseOverlay {
 
 func NewMapDB() *AnchorDatabaseOverlay {
 	return NewAnchorOverlay(new(mapdb.MapDB))
+}
+
+func NewLevelDB(ldbpath string) (*AnchorDatabaseOverlay, error) {
+	db, err := leveldb.NewLevelDB(ldbpath, false)
+	if err != nil {
+		fmt.Printf("err opening db: %v\n", err)
+	}
+
+	if db == nil {
+		fmt.Println("Creating new db ...")
+		db, err = leveldb.NewLevelDB(ldbpath, true)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Println("Database started from: " + ldbpath)
+	return NewAnchorOverlay(db), nil
 }
 
 func (db *AnchorDatabaseOverlay) InsertAnchorData(data *AnchorData, isHead bool) error {

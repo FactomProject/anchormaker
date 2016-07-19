@@ -20,7 +20,11 @@ var GasPrice string = "0x10FFFF"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
+	WalletAddress = c.Ethereum.WalletAddress
+	ContractAddress = c.Ethereum.ContractAddress
+	GasPrice = c.Ethereum.GasPrice
 
+	//TODO: load ServerAddress into EthereumAPI
 }
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
