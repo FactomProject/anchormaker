@@ -13,6 +13,10 @@ import (
 
 var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
 var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
+var GasPrice string = "0x10FFFF"
+
+//"0xd36b1da5"
+var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	txCount := 0
@@ -49,7 +53,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			//makign sure the input is of correct length
 			if len(tx.Input) == 202 {
 				//making sure the right function is called
-				if tx.Input[:10] == "0xd36b1da5" { //TODO: update prefix on final smart contract deployment
+				if tx.Input[:10] == FunctionPrefix {
 					dbHeight, keyMR, _ := ParseInput(tx.Input)
 
 					ad, err := dbo.FetchAnchorData(dbHeight)
@@ -118,7 +122,7 @@ func AtoiHex(s string) int64 {
 
 func ParseInput(input string) (dBlockHeight uint32, keyMR string, hash string) {
 	if len(input) == 202 {
-		if input[:10] == "0xd36b1da5" { //TODO: update prefix on final smart contract deployment
+		if input[:10] == FunctionPrefix {
 			input = input[10:]
 			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
 			keyMR, input = input[:64], input[64:]
@@ -185,7 +189,7 @@ func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
 	tx := new(EthereumAPI.TransactionObject)
 	tx.From = WalletAddress
 	tx.To = ContractAddress
-	tx.Gas = "0x10FFFF"
+	tx.Gas = GasPrice
 	tx.Data = data
 
 	fmt.Printf("tx - %v\n", tx)

@@ -39,6 +39,12 @@ type anchorConfig struct {
 		RpcUser            string
 		RpcPass            string
 	}
+	Ethereum struct {
+		WalletAddress   string
+		ContractAddress string
+		GasPrice        string
+		ServerAddress   string
+	}
 	Log struct {
 		LogPath  string
 		LogLevel string
@@ -61,28 +67,36 @@ const defaultConfig = `
 ; ------------------------------------------------------------------------------
 [app]
 HomeDir								= ""
-LdbPath					        	= "ldb"
-ServerPrivKey			      		= 07c0d52cb74f4ca3106d80c4a70488426886bccc6ebc10c6bafb37bf8a65f4c38cee85c62a9e48039d4ac294da97943c2001be1539809ea5f54721f0c5477a0a
+LdbPath								= "ldb"
+ServerPrivKey						= 07c0d52cb74f4ca3106d80c4a70488426886bccc6ebc10c6bafb37bf8a65f4c38cee85c62a9e48039d4ac294da97943c2001be1539809ea5f54721f0c5477a0a
 [anchor]
 ServerECKey							= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
 AnchorChainID						= df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
-AnchorSigPublicKey                  = 0426a802617848d4d16d87830fc521f4d136bb2d0c352850919c2679f189613a
+AnchorSigPublicKey					= 0426a802617848d4d16d87830fc521f4d136bb2d0c352850919c2679f189613a
 ConfirmationsNeeded					= 20
 ; ------------------------------------------------------------------------------
 ; Bitcoin settings
 ; ------------------------------------------------------------------------------
 [btc]
-WalletPassphrase 	  				= "testNetPa55"
-CertHomePath			  			= "btcwallet"
-RpcClientHost			  			= "localhost:18332"
+WalletPassphrase 					= "testNetPa55"
+CertHomePath						= "btcwallet"
+RpcClientHost						= "localhost:18332"
 RpcClientEndpoint					= "ws"
-RpcClientUser			  			= "testuser"
+RpcClientUser						= "testuser"
 RpcClientPass 						= "SecurePassHere"
-BtcTransFee				  			= 0.0001
+BtcTransFee							= 0.0001
 CertHomePathBtcd					= "btcd"
-RpcBtcdHost 			  			= "localhost:18334"
-RpcUser                             = "testuser"
-RpcPass                             = "SecurePassHere"
+RpcBtcdHost 						= "localhost:18334"
+RpcUser								= "testuser"
+RpcPass								= "SecurePassHere"
+; ------------------------------------------------------------------------------
+; Ethereum settings
+; ------------------------------------------------------------------------------
+[ethereum]
+WalletAddress						= "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
+ContractAddress 					= "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
+GasPrice							= "0x10FFFF"
+ServerAddress						= "localhost:8545"
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
 ; ------------------------------------------------------------------------------
