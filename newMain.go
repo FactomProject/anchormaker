@@ -94,5 +94,16 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 	if err != nil {
 		return err
 	}
+
+	err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
+	if err != nil {
+		return err
+	}
+
+	err = factom.SaveAnchorsIntoFactom(dbo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

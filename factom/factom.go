@@ -155,3 +155,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	return blockCount, nil
 }
+
+func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
+	return nil
+}

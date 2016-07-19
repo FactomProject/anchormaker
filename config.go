@@ -10,6 +10,8 @@ import (
 	"gopkg.in/gcfg.v1"
 )
 
+var cfg *anchorConfig
+
 type anchorConfig struct {
 	App struct {
 		HomeDir       string
