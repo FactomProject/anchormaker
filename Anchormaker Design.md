@@ -29,10 +29,15 @@ Anchoring order
 Anchormaker has a strict order for anchoring data: 
 
 1) When a new Directory Block is first created, its AnchorData will only have KeyMR and Height.
+
 2) When it is anchored into Bitcoin or Ethereum, it will have the network's TxID, Address, etc. field populated.
+
 3) When the anchor is confirmed and embedded into the blockchain permanently, the record is updated with the block hash and height the transaction was included in.
+
 4) After the confirmed anchor is saved, it can be embedded into Factom's entry chain. When an entry is sent out to be saved, the Entry Hash is saved in AnchorData.
+
 5) When an entry is embedded in a full DirectoryBlock, we save its Record Height (which DBlock height it was included in). This indicates that the anchor cycle for the given network is fully finished.
+
 6) When both entries are fully embedded into DirectoryBlock, the AnchorData is considered complete and can be ignored from now on.
 
 Synchronization process
@@ -61,7 +66,11 @@ Creating new anchors
 Once all data is synchronized with all of the networks, Anchormaker can start making new anchors. It should first check its wallet balance to ensure it has enough funds to proceed with creating anchors. Afterwards, it can create new anchors in the following way:
 
 1) Every network anchoring loop should start at the last complete AnchorData (having both Bitcoin and Ethereum anchor's RecordHeight from Factom) and iterate onwards from there.
+
 2) The loop should skip over entries it already tried anchoring (AnchorData will have their TxIDs)
+
 3) For every DirectoryBlock that doesn't have the network-specific anchor transaction, the loop should create a new transaction, send it to the network, and upon success - immediately record the TxID into AnchorData.
+
 4) The transactions should have sufficient fees and never try to double-spend themselves or spend unconfirmed transactions to ensure no transaction gets orphaned or remains unconfirmed.
+
 5) Continue until all DirectoryBlocks have an anchor transaction.
