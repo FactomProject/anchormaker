@@ -9,10 +9,17 @@ import (
 
 	"github.com/FactomProject/factomd/anchor"
 	"github.com/FactomProject/factomd/common/interfaces"
+	"github.com/FactomProject/factomd/common/primitives"
 )
 
-func LoadConfig(c *config.AnchorConfig) {
+var AnchorSigPublicKey *primitives.PublicKey
 
+func LoadConfig(c *config.AnchorConfig) {
+	AnchorSigPublicKey = new(primitives.PublicKey)
+	err := AnchorSigPublicKey.UnmarshalText([]byte(c.Anchor.AnchorSigPublicKey))
+	if err != nil {
+		panic(err)
+	}
 }
 
 //Returns number of blocks synchronized
@@ -96,9 +103,12 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
-					ar, err := anchor.UnmarshalAnchorRecord(entry.GetContent())
+					ar, valid, err := anchor.UnmarshalAndvalidateAnchorRecord(entry.GetContent(), AnchorSigPublicKey)
 					if err != nil {
 						return 0, err
+					}
+					if valid == false {
+						return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 

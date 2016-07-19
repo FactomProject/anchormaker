@@ -19,6 +19,16 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 }
 
 /*
+// SendRawTransactionToBTC is the main function used to anchor factom
+// dir block hash to bitcoin blockchain
+func SendRawTransactionToBTC(hash *common.Hash, blockHeight uint32) (*wire.ShaHash, error) {
+	anchorLog.Debug("SendRawTransactionToBTC: hash=", hash.String(), ", dir block height=", blockHeight) //strconv.FormatUint(blockHeight, 10))
+	dirBlockInfo, err := sanityCheck(hash)
+	if err != nil {
+		return nil, err
+	}
+	return doTransaction(hash, blockHeight, dirBlockInfo)
+}
 
 func createRawTransaction(b balance, hash []byte, blockHeight uint32) (*wire.MsgTx, error) {
 	msgtx := wire.NewMsgTx()

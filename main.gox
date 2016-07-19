@@ -307,17 +307,6 @@ func checkMissingDirBlockInfo() {
 	//fmt.Println(dirBlockInfoMap)
 }
 
-// SendRawTransactionToBTC is the main function used to anchor factom
-// dir block hash to bitcoin blockchain
-func SendRawTransactionToBTC(hash *common.Hash, blockHeight uint32) (*wire.ShaHash, error) {
-	anchorLog.Debug("SendRawTransactionToBTC: hash=", hash.String(), ", dir block height=", blockHeight) //strconv.FormatUint(blockHeight, 10))
-	dirBlockInfo, err := sanityCheck(hash)
-	if err != nil {
-		return nil, err
-	}
-	return doTransaction(hash, blockHeight, dirBlockInfo)
-}
-
 func doTransaction(hash *common.Hash, blockHeight uint32, dirBlockInfo *common.DirBlockInfo) (*wire.ShaHash, error) {
 	b := balances[0]
 	balances = balances[1:]
