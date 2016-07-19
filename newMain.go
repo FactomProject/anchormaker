@@ -17,6 +17,8 @@ func main() {
 	interruptChannel = make(chan os.Signal, 1)
 	signal.Notify(interruptChannel, os.Interrupt)
 
+	go interruptLoop()
+
 	for {
 		//ensuring safe interruption
 		select {
@@ -34,6 +36,21 @@ func main() {
 			}
 		}
 	}
+}
+
+//Function for quickly shutting down the function, disregarding safety
+func interruptLoop() {
+	var interruptChannel chan os.Signal
+	interruptChannel = make(chan os.Signal, 1)
+	signal.Notify(interruptChannel, os.Interrupt)
+	for i := 0; i < 5; i++ {
+		<-interruptChannel
+		if i < 4 {
+			fmt.Printf("Received interrupt signal %v times. The program will shut down safely after a full loop.\nFor emergency shutdown, interrupt %v more times.\n", i+1, 4-i)
+		}
+	}
+	fmt.Printf("Emergency shutdown!\n")
+	os.Exit(1)
 }
 
 //The loop that synchronizes AnchorMaker with all networks

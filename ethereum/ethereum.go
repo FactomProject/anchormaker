@@ -49,7 +49,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			//makign sure the input is of correct length
 			if len(tx.Input) == 202 {
 				//making sure the right function is called
-				if tx.Input[:10] == "0xd36b1da5" {
+				if tx.Input[:10] == "0xd36b1da5" { //TODO: update prefix on final smart contract deployment
 					dbHeight, keyMR, _ := ParseInput(tx.Input)
 
 					ad, err := dbo.FetchAnchorData(dbHeight)
@@ -118,7 +118,7 @@ func AtoiHex(s string) int64 {
 
 func ParseInput(input string) (dBlockHeight uint32, keyMR string, hash string) {
 	if len(input) == 202 {
-		if input[:10] == "0xd36b1da5" {
+		if input[:10] == "0xd36b1da5" { //TODO: update prefix on final smart contract deployment
 			input = input[10:]
 			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
 			keyMR, input = input[:64], input[64:]
