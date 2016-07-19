@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/FactomProject/EthereumAPI"
+	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 )
 
@@ -17,6 +18,10 @@ var GasPrice string = "0x10FFFF"
 
 //"0xd36b1da5"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)") //TODO: update prefix on final smart contract deployment
+
+func LoadConfig(c *config.AnchorConfig) {
+
+}
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	txCount := 0

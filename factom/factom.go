@@ -4,11 +4,16 @@ import (
 	"fmt"
 
 	"github.com/FactomProject/anchormaker/api"
+	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 
 	"github.com/FactomProject/factomd/anchor"
 	"github.com/FactomProject/factomd/common/interfaces"
 )
+
+func LoadConfig(c *config.AnchorConfig) {
+
+}
 
 //Returns number of blocks synchronized
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {

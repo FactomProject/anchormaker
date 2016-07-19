@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/FactomProject/anchormaker/bitcoin"
+	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 	"github.com/FactomProject/anchormaker/ethereum"
 	"github.com/FactomProject/anchormaker/factom"
@@ -13,6 +14,12 @@ import (
 
 func main() {
 	dbo := database.NewMapDB()
+
+	c := config.ReadConfig()
+	bitcoin.LoadConfig(c)
+	ethereum.LoadConfig(c)
+	factom.LoadConfig(c)
+
 	var interruptChannel chan os.Signal
 	interruptChannel = make(chan os.Signal, 1)
 	signal.Notify(interruptChannel, os.Interrupt)

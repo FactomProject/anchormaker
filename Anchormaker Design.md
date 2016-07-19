@@ -12,6 +12,8 @@ To ensure the program is safely shut down, interrupts only happen after a full l
 
 The program is not designed for multiple threads (other than the interrupt thread). This is done intentionally, as the anchoring process has a strict ordering (see below).
 
+The configuration for all of the networks is read by the main loop of the program and sent to a LoadConfig function for each of the network before the main loop is started.
+
 Anchormaker uses a single, shared database. It is passed by the main loop of the program down to every function that needs it.
 
 Database and data

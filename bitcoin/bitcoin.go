@@ -1,8 +1,13 @@
 package bitcoin
 
 import (
+	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 )
+
+func LoadConfig(c *config.AnchorConfig) {
+
+}
 
 func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 

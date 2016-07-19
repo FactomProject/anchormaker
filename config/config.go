@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log"
@@ -10,9 +10,9 @@ import (
 	"gopkg.in/gcfg.v1"
 )
 
-var cfg *anchorConfig
+var cfg *AnchorConfig
 
-type anchorConfig struct {
+type AnchorConfig struct {
 	App struct {
 		HomeDir       string
 		LdbPath       string
@@ -105,7 +105,7 @@ logLevel 							= debug
 LogPath								= "anchormaker.log"
 `
 
-//var acfg *anchorConfig
+//var acfg *AnchorConfig
 var once sync.Once
 var filename = getHomeDir() + "/.factom/anchormaker.conf"
 
@@ -113,9 +113,9 @@ func SetConfigFile(f string) {
 	filename = f
 }
 
-// GetConfig reads the default anchormaker.conf file and returns an anchorConfig
+// GetConfig reads the default anchormaker.conf file and returns an AnchorConfig
 // object corresponding to the state of the file.
-func ReadConfig() *anchorConfig {
+func ReadConfig() *AnchorConfig {
 	once.Do(func() {
 		cfg = readAnchorConfig()
 	})
@@ -123,20 +123,20 @@ func ReadConfig() *anchorConfig {
 	return cfg
 }
 
-func ReReadConfig() *anchorConfig {
+func ReReadConfig() *AnchorConfig {
 	cfg = readAnchorConfig()
 
 	return cfg
 }
 
-func readAnchorConfig() *anchorConfig {
+func readAnchorConfig() *AnchorConfig {
 	if len(os.Args) > 1 { //&& strings.Contains(strings.ToLower(os.Args[1]), "anchormaker.conf") {
 		filename = os.Args[1]
 	}
 	if strings.HasPrefix(filename, "~") {
 		filename = getHomeDir() + filename
 	}
-	cfg := new(anchorConfig)
+	cfg := new(AnchorConfig)
 	//log.Println("read anchormaker config file: ", filename)
 
 	err := gcfg.ReadFileInto(cfg, filename)
