@@ -58,6 +58,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		return 0, err
 	}
 	fmt.Printf("dBlock - %v\n", dBlock)
+	currentHeadHeight := dBlock.GetDatabaseHeight()
 
 	dBlockList := make([]interfaces.IDirectoryBlock, int(dBlock.GetDatabaseHeight())+1)
 	dBlockList[int(dBlock.GetDatabaseHeight())] = dBlock
@@ -120,14 +121,27 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
 					}
 
-					anchorData.Bitcoin.Address = ar.Bitcoin.Address
-					anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
-					anchorData.Bitcoin.BlockHeight = ar.Bitcoin.BlockHeight
-					anchorData.Bitcoin.BlockHash = ar.Bitcoin.BlockHash
-					anchorData.Bitcoin.Offset = ar.Bitcoin.Offset
+					if ar.Bitcoin != nil {
+						anchorData.Bitcoin.Address = ar.Bitcoin.Address
+						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
+						anchorData.Bitcoin.BlockHeight = ar.Bitcoin.BlockHeight
+						anchorData.Bitcoin.BlockHash = ar.Bitcoin.BlockHash
+						anchorData.Bitcoin.Offset = ar.Bitcoin.Offset
 
-					anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
-					anchorData.BitcoinRecordEntryHash = eh.String()
+						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
+						anchorData.BitcoinRecordEntryHash = eh.String()
+					}
+					if ar.Ethereum != nil {
+						anchorData.Ethereum.Address = ar.Ethereum.Address
+						anchorData.Ethereum.TXID = ar.Ethereum.TXID
+						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
+						anchorData.Ethereum.BlockHash = ar.Ethereum.BlockHash
+						anchorData.Ethereum.Offset = ar.Ethereum.Offset
+
+						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
+						anchorData.EthereumRecordEntryHash = eh.String()
+					}
+
 					err = dbo.InsertAnchorData(anchorData, false)
 					if err != nil {
 						return 0, err
@@ -135,8 +149,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					blockCount++
 				}
 			}
-
-			//TODO: look for Ethereum anchors
 		}
 
 		//Updating new directory blocks
@@ -162,6 +174,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	}
 
 	ps.LastFactomDBlockChecked = dBlockHead
+	ps.LastFactomDBlockHeightChecked = currentHeadHeight
 
 	err = dbo.InsertProgramState(ps)
 	if err != nil {
@@ -172,5 +185,93 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 }
 
 func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		return err
+	}
+	anchorData, err := dbo.FetchAnchorDataHead()
+	if err != nil {
+		return err
+	}
+	if anchorData == nil {
+		anchorData, err = dbo.FetchAnchorData(0)
+		if err != nil {
+			return err
+		}
+		if anchorData == nil {
+			//nothing found
+			return nil
+		}
+	}
+	for {
+		//Only anchor records that haven't been anchored before
+		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
+			//Proceed if and only if one of the factom entries is already sent and the other needs to catch up, OR BOTH entries need to be sent together
+			//This is to ensure we only send our one transaction for any entry block if possible
+			if (anchorData.Bitcoin.TXID != "" && anchorData.Ethereum.TXID != "") || anchorData.BitcoinRecordEntryHash != "" || anchorData.EthereumRecordEntryHash != "" {
+				anchorRecord := new(anchor.AnchorRecord)
+				anchorRecord.AnchorRecordVer = 2
+				anchorRecord.DBHeight = anchorData.DBlockHeight
+				anchorRecord.KeyMR = anchorData.DBlockKeyMR
+				anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked
+
+				//Bitcoin anchor
+				//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
+				if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "" {
+					anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
+
+					anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
+					anchorRecord.Bitcoin.TXID = anchorData.Bitcoin.TXID
+					anchorRecord.Bitcoin.BlockHeight = anchorData.Bitcoin.BlockHeight
+					anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
+					anchorRecord.Bitcoin.Offset = anchorData.Bitcoin.Offset
+				}
+
+				//Ethereum anchor
+				//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
+				if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "" {
+					anchorRecord.Ethereum = new(anchor.EthereumStruct)
+
+					anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
+					anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
+					anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
+					anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
+					anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
+				}
+
+				//Ideally, both entries will be anchored at the same time
+
+				tx, err := CreateAndSendAnchor(anchorRecord)
+				if err != nil {
+					return err
+				}
+
+				//Update Factom Entry Hash for whatever we anchored
+				if anchorRecord.Ethereum != nil {
+					anchorData.EthereumRecordEntryHash = tx
+				}
+				if anchorRecord.Bitcoin != nil {
+					anchorData.BitcoinRecordEntryHash = tx
+				}
+				err = dbo.InsertAnchorData(anchorData, false)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		anchorData, err = dbo.FetchAnchorData(anchorData.DBlockHeight + 1)
+		if err != nil {
+			return err
+		}
+		if anchorData == nil {
+			break
+		}
+	}
 	return nil
+}
+
+//Takes care of sending the entry to the Factom network, returns txID
+func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
+	fmt.Printf("Anchoring %v\n", ar)
+	return "", nil
 }

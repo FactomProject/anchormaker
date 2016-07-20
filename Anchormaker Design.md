@@ -3,6 +3,11 @@ Anchormaker Design
 
 Anchormaker is a standalone application that is designed to run alongside factomd, factomwallet (?), btcd (?), btcwallet (?) and geth to anchor Factom Directory Blocks into Bitcoin and Ethereum.
 
+Design questions
+--------
+
+1) Should we stall to save an anchor in a Factoid Entry for both Bitcoin and Ethereum together if possible, or race to anchor a record as fast as possible? Since we're anchored ASAP anyway, waiting to save anchor entry isn't too much of a priority and it would produce overall less entries, but on the flip-side we could stall the anchors for awhile if one network is being unresponsive... For now anchoring together if possible.
+
 General functionality
 --------
 

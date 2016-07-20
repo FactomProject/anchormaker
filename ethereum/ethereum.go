@@ -80,12 +80,12 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if ad.EthereumRecordHeight > 0 {
 						continue
 					}
-					if ad.Ethereum.TxID != "" {
+					if ad.Ethereum.TXID != "" {
 						continue
 					}
 
 					ad.Ethereum.Address = tx.From
-					ad.Ethereum.TxID = tx.Hash
+					ad.Ethereum.TXID = tx.Hash
 					ad.Ethereum.BlockHeight = Atoi(tx.BlockNumber)
 					ad.Ethereum.BlockHash = tx.BlockHash
 					ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
@@ -164,7 +164,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		if ad == nil {
 			return nil
 		}
-		if ad.Ethereum.TxID != "" {
+		if ad.Ethereum.TXID != "" {
 			height = ad.DBlockHeight + 1
 			continue
 		}
@@ -177,7 +177,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		}
 		fmt.Printf("Anchored %v\n", height)
 
-		ad.Ethereum.TxID = tx
+		ad.Ethereum.TXID = tx
 		err = dbo.InsertAnchorData(ad, false)
 		if err != nil {
 			return err

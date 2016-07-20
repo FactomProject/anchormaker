@@ -12,9 +12,10 @@ import (
 var ProgramStateStr []byte = []byte("ProgramState")
 
 type ProgramStateBase struct {
-	LastBitcoinBlockChecked  int64
-	LastEthereumBlockChecked int64
-	LastFactomDBlockChecked  string
+	LastBitcoinBlockChecked       int64
+	LastEthereumBlockChecked      int64
+	LastFactomDBlockChecked       string
+	LastFactomDBlockHeightChecked uint32
 }
 
 type ProgramState struct {
