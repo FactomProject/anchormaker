@@ -206,57 +206,59 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	for {
 		//Only anchor records that haven't been anchored before
 		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
-			//Proceed if and only if one of the factom entries is already sent and the other needs to catch up, OR BOTH entries need to be sent together
-			//This is to ensure we only send our one transaction for any entry block if possible
-			if (anchorData.Bitcoin.TXID != "" && anchorData.Ethereum.TXID != "") || anchorData.BitcoinRecordEntryHash != "" || anchorData.EthereumRecordEntryHash != "" {
-				anchorRecord := new(anchor.AnchorRecord)
-				anchorRecord.AnchorRecordVer = 2
-				anchorRecord.DBHeight = anchorData.DBlockHeight
-				anchorRecord.KeyMR = anchorData.DBlockKeyMR
-				anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked
+			anchorRecord := new(anchor.AnchorRecord)
+			anchorRecord.AnchorRecordVer = 1
+			anchorRecord.DBHeight = anchorData.DBlockHeight
+			anchorRecord.KeyMR = anchorData.DBlockKeyMR
+			anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked + 1
 
-				//Bitcoin anchor
-				//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
-				if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "" {
-					anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
+			//Bitcoin anchor
+			//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
+			if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "" {
+				anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
 
-					anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
-					anchorRecord.Bitcoin.TXID = anchorData.Bitcoin.TXID
-					anchorRecord.Bitcoin.BlockHeight = anchorData.Bitcoin.BlockHeight
-					anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
-					anchorRecord.Bitcoin.Offset = anchorData.Bitcoin.Offset
-				}
-
-				//Ethereum anchor
-				//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
-				if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "" {
-					anchorRecord.Ethereum = new(anchor.EthereumStruct)
-
-					anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
-					anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
-					anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
-					anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
-					anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
-				}
-
-				//Ideally, both entries will be anchored at the same time
+				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
+				anchorRecord.Bitcoin.TXID = anchorData.Bitcoin.TXID
+				anchorRecord.Bitcoin.BlockHeight = anchorData.Bitcoin.BlockHeight
+				anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
+				anchorRecord.Bitcoin.Offset = anchorData.Bitcoin.Offset
 
 				tx, err := CreateAndSendAnchor(anchorRecord)
 				if err != nil {
 					return err
 				}
+				anchorData.BitcoinRecordEntryHash = tx
 
-				//Update Factom Entry Hash for whatever we anchored
-				if anchorRecord.Ethereum != nil {
-					anchorData.EthereumRecordEntryHash = tx
-				}
-				if anchorRecord.Bitcoin != nil {
-					anchorData.BitcoinRecordEntryHash = tx
-				}
-				err = dbo.InsertAnchorData(anchorData, false)
+				//Resetting AnchorRecord
+				anchorRecord.Bitcoin = nil
+			}
+
+			//Ethereum anchor
+			//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
+			if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "" {
+				anchorRecord.Ethereum = new(anchor.EthereumStruct)
+
+				anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
+				anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
+				anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
+				anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
+				anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
+
+				tx, err := CreateAndSendAnchor(anchorRecord)
 				if err != nil {
 					return err
 				}
+				anchorData.BitcoinRecordEntryHash = tx
+
+				anchorData.EthereumRecordEntryHash = tx
+
+				//Resetting AnchorRecord
+				anchorRecord.Ethereum = nil
+			}
+
+			err = dbo.InsertAnchorData(anchorData, false)
+			if err != nil {
+				return err
 			}
 		}
 		anchorData, err = dbo.FetchAnchorData(anchorData.DBlockHeight + 1)
@@ -273,5 +275,11 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 //Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Anchoring %v\n", ar)
+	if ar.Bitcoin != nil {
+
+	}
+	if ar.Ethereum != nil {
+
+	}
 	return "", nil
 }
