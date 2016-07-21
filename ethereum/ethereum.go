@@ -13,6 +13,7 @@ import (
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
 var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
+var WalletPassword string = "pass"
 var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 var GasPrice string = "0x10FFFF"
 
@@ -23,6 +24,7 @@ func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = c.Ethereum.WalletAddress
 	ContractAddress = c.Ethereum.ContractAddress
 	GasPrice = c.Ethereum.GasPrice
+	WalletPassword = c.Ethereum.WalletPassword
 
 	//TODO: load ServerAddress into EthereumAPI
 }
@@ -203,7 +205,7 @@ func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
 
 	fmt.Printf("tx - %v\n", tx)
 
-	txHash, err := EthereumAPI.EthSendTransaction(tx)
+	txHash, err := EthereumAPI.PersonalSignAndSendTransaction(tx, WalletPassword)
 
 	if err != nil {
 		fmt.Printf("err - %v", err)

@@ -102,7 +102,7 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 }
 
 func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
-	/*err := ethereum.AnchorBlocksIntoEthereum(dbo)
+	err := ethereum.AnchorBlocksIntoEthereum(dbo)
 	if err != nil {
 		return err
 	}
@@ -110,9 +110,9 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 	err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
 	if err != nil {
 		return err
-	}*/
+	}
 
-	err := factom.SaveAnchorsIntoFactom(dbo)
+	err = factom.SaveAnchorsIntoFactom(dbo)
 	if err != nil {
 		return err
 	}
