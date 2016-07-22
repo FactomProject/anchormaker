@@ -4,13 +4,40 @@ import (
 	"fmt"
 
 	"github.com/FactomProject/factom"
+
+	"github.com/FactomProject/anchormaker/api"
+	"github.com/FactomProject/anchormaker/config"
+	anchorFactom "github.com/FactomProject/anchormaker/factom"
+
 	"github.com/FactomProject/factomd/common/entryBlock"
 )
 
 func main() {
 	//TODO: setup API, etc.
 
-	err := CheckAndCreateBitcoinAnchorChain()
+	c := config.ReadConfig()
+	anchorFactom.LoadConfig(c)
+	api.SetServer(c.Factom.FactomdAddress)
+
+	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Balances - %v, %v\n", fBalance, ecBalance)
+
+	if ecBalance < c.Factom.ECBalanceThreshold {
+		if fBalance < c.Factom.FactoidBalanceThreshold {
+			fmt.Printf("EC and F Balances are too low, can't do anything!\n")
+			return
+		}
+		/*err = anchorFactom.TopupECAddress()
+		if err != nil {
+			panic(err)
+		}*/
+	}
+
+	err = CheckAndCreateBitcoinAnchorChain()
 	if err != nil {
 		panic(err)
 	}
@@ -19,6 +46,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	/*
+		tx, err := factom.FactoidACK("579082d3fd55f3edb110de1e15e835b9d9f9c9d5349500360fcd135e56ee9425", "")
+		fmt.Printf("tx, err - %v, %v", tx, err)*/
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {

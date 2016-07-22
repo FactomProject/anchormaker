@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/FactomProject/factom"
+
 	"github.com/FactomProject/factomd/common/adminBlock"
 	"github.com/FactomProject/factomd/common/directoryBlock"
 	"github.com/FactomProject/factomd/common/entryBlock"
@@ -18,6 +20,38 @@ import (
 //var server string = "localhost:8088" //Localhost
 //var server string = "52.17.183.121:8088" //TestNet
 var server string = "52.18.72.212:8088" //MainNet
+
+func SetServer(serverAddress string) {
+	server = serverAddress
+	factom.SetFactomdServer(serverAddress)
+}
+
+func GetECBalance(ecPublicKey string) (int64, error) {
+	ecAddress, err := factoid.PublicKeyStringToECAddressString(ecPublicKey)
+	if err != nil {
+		return 0, err
+	}
+	fmt.Printf("GetECBalance %v\n", ecAddress)
+
+	balance, err := factom.GetECBalance(ecAddress)
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
+}
+
+func GetFactoidBalance(factoidPublicKey string) (int64, error) {
+	fAddress, err := factoid.PublicKeyStringToFactoidAddressString(factoidPublicKey)
+	if err != nil {
+		return 0, err
+	}
+	balance, err := factom.GetFactoidBalance(fAddress)
+	if err != nil {
+		return 0, err
+	}
+
+	return balance, nil
+}
 
 type DBlockHead struct {
 	KeyMR string
@@ -98,7 +132,9 @@ func GetEntry(hash string) (interfaces.IEBEntry, error) {
 func GetDBlockHead() (string, error) {
 	//return "3a5ec711a1dc1c6e463b0c0344560f830eb0b56e42def141cb423b0d8487a1dc", nil //10
 	//return "cde346e7ed87957edfd68c432c984f35596f29c7d23de6f279351cddecd5dc66", nil //100
-	return "d13472838f0156a8773d78af137ca507c91caf7bf3b73124d6b09ebb0a98e4d9", nil //200
+	//return "d13472838f0156a8773d78af137ca507c91caf7bf3b73124d6b09ebb0a98e4d9", nil //200
+
+	return factom.GetDBlockHead()
 
 	resp, err := http.Get(
 		fmt.Sprintf("http://%s/v1/directory-block-head/", server))
@@ -125,6 +161,9 @@ type Data struct {
 }
 
 func GetRaw(keymr string) ([]byte, error) {
+	return factom.GetRaw(keymr)
+
+	fmt.Printf("GetRaw %v\n", keymr)
 	resp, err := http.Get(
 		fmt.Sprintf("http://%s/v1/get-raw-data/%s", server, keymr))
 	if err != nil {

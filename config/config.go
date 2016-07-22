@@ -18,6 +18,12 @@ type AnchorConfig struct {
 		LdbPath       string
 		ServerPrivKey string
 	}
+	Factom struct {
+		FactomdAddress          string
+		WalletAddress           string
+		FactoidBalanceThreshold int64
+		ECBalanceThreshold      int64
+	}
 	Anchor struct {
 		ServerECKey         string
 		AnchorChainID       string
@@ -40,11 +46,12 @@ type AnchorConfig struct {
 		RpcPass            string
 	}
 	Ethereum struct {
-		WalletAddress   string
-		WalletPassword  string
-		ContractAddress string
-		GasPrice        string
-		ServerAddress   string
+		WalletAddress      string
+		WalletPassword     string
+		ContractAddress    string
+		GasPrice           string
+		ServerAddress      string
+		IgnoreWrongEntries bool
 	}
 	Log struct {
 		LogPath  string
@@ -69,12 +76,22 @@ const defaultConfig = `
 [app]
 HomeDir								= ""
 LdbPath								= "AnchormakerLDB"
-ServerPrivKey						= 07c0d52cb74f4ca3106d80c4a70488426886bccc6ebc10c6bafb37bf8a65f4c38cee85c62a9e48039d4ac294da97943c2001be1539809ea5f54721f0c5477a0a
+ServerPrivKey						= 75c67eb4637d8d0a7dba0ba8152bf1b96cba551f888878c7a5b7b8a34ac584e8f06f190d3307f52ff56e2ea6874250cb8ce0332dcc809b80100493b1ff064c59
+; ServerPrivKey						= 07c0d52cb74f4ca3106d80c4a70488426886bccc6ebc10c6bafb37bf8a65f4c38cee85c62a9e48039d4ac294da97943c2001be1539809ea5f54721f0c5477a0a
 [anchor]
-ServerECKey							= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
+ServerECKey 						= 5c0eb59f5d311a1c80ba0302b53433457bdb9e271fc22f064e6981ac8965bc2f1f0a6c2bf854a0994562bf36606345aaa6a1dfee3073fb3276b878751238f762
+; ServerECKey						= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
 AnchorChainID						= df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
 AnchorSigPublicKey					= 0426a802617848d4d16d87830fc521f4d136bb2d0c352850919c2679f189613a
 ConfirmationsNeeded					= 20
+; ------------------------------------------------------------------------------
+; Factom settings
+; ------------------------------------------------------------------------------
+[factom]
+FactomdAddress						= "13.84.217.234:8088"
+WalletAddress						= "localhost:8089"
+FactoidBalanceThreshold				= 100
+ECBalanceThreshold					= 1000
 ; ------------------------------------------------------------------------------
 ; Bitcoin settings
 ; ------------------------------------------------------------------------------
@@ -99,6 +116,7 @@ WalletPassword						= "pass"
 ContractAddress 					= "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
+IgnoreWrongEntries					= true
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
 ; ------------------------------------------------------------------------------

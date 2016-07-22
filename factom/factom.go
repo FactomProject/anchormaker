@@ -3,16 +3,29 @@ package factom
 import (
 	"fmt"
 
+	"github.com/FactomProject/factom"
+	"github.com/FactomProject/factom/wallet"
+	"github.com/FactomProject/factom/wallet/wsapi"
+
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 
 	"github.com/FactomProject/factomd/anchor"
+	"github.com/FactomProject/factomd/common/factoid"
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
 var AnchorSigPublicKey *primitives.PublicKey
+
+var ServerECKey *primitives.PrivateKey
+var ServerPrivKey *primitives.PrivateKey
+
+var FactoidBalanceThreshold int64
+var ECBalanceThreshold int64
+
+var ldbPath string
 
 func LoadConfig(c *config.AnchorConfig) {
 	AnchorSigPublicKey = new(primitives.PublicKey)
@@ -20,6 +33,36 @@ func LoadConfig(c *config.AnchorConfig) {
 	if err != nil {
 		panic(err)
 	}
+
+	key, err := primitives.NewPrivateKeyFromHex(c.Anchor.ServerECKey)
+	if err != nil {
+		panic(err)
+	}
+	ServerECKey = key
+
+	key, err = primitives.NewPrivateKeyFromHex(c.App.ServerPrivKey)
+	if err != nil {
+		panic(err)
+	}
+	ServerPrivKey = key
+
+	ldbPath = c.App.LdbPath
+
+	FactoidBalanceThreshold = c.Factom.FactoidBalanceThreshold
+	ECBalanceThreshold = c.Factom.ECBalanceThreshold
+}
+
+func CheckFactomBalance() (int64, int64, error) {
+	ecBalance, err := api.GetECBalance(ServerECKey.PublicKeyString())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	fBalance, err := api.GetFactoidBalance(ServerPrivKey.PublicKeyString())
+	if err != nil {
+		return 0, 0, err
+	}
+	return fBalance, ecBalance, nil
 }
 
 //Returns number of blocks synchronized
@@ -27,6 +70,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	blockCount := 0
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 	startHeight := 0
@@ -37,6 +81,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	}
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 	if ps.LastFactomDBlockChecked != "" {
@@ -45,6 +90,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	dBlockHead, err := api.GetDBlockHead()
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 
@@ -55,6 +101,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	dBlock, err := api.GetDBlock(dBlockHead)
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 	fmt.Printf("dBlock - %v\n", dBlock)
@@ -71,9 +118,11 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		dBlock, err = api.GetDBlock(keymr)
 		if err != nil {
+			panic(err)
 			return 0, err
 		}
 		if dBlock == nil {
+			panic(err)
 			return 0, fmt.Errorf("dblock " + keymr + " not found")
 		}
 
@@ -100,24 +149,29 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					fmt.Printf("Fetching %v\n", eh.String())
 					entry, err := api.GetEntry(eh.String())
 					if err != nil {
+						panic(err)
 						return 0, err
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
 					ar, valid, err := anchor.UnmarshalAndvalidateAnchorRecord(entry.GetContent(), AnchorSigPublicKey)
 					if err != nil {
+						panic(err)
 						return 0, err
 					}
 					if valid == false {
+						panic(err)
 						return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 
 					anchorData, err = dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
+						panic(err)
 						return 0, err
 					}
 					if anchorData.DBlockKeyMR != ar.KeyMR {
+						panic(err)
 						return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
 					}
 
@@ -144,6 +198,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 					err = dbo.InsertAnchorData(anchorData, false)
 					if err != nil {
+						panic(err)
 						return 0, err
 					}
 					blockCount++
@@ -154,6 +209,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		//Updating new directory blocks
 		anchorData, err = dbo.FetchAnchorData(uint32(i))
 		if err != nil {
+			panic(err)
 			return 0, err
 		}
 		if anchorData == nil {
@@ -162,6 +218,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			anchorData.DBlockKeyMR = dBlock.GetKeyMR().String()
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
+				panic(err)
 				return 0, err
 			}
 			blockCount++
@@ -170,6 +227,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	err = dbo.UpdateAnchorDataHead()
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 
@@ -178,6 +236,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	err = dbo.InsertProgramState(ps)
 	if err != nil {
+		panic(err)
 		return 0, err
 	}
 
@@ -282,4 +341,42 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 
 	}
 	return "", nil
+}
+
+func TopupECAddress() error {
+	w, err := wallet.NewOrOpenWallet(ldbPath + "Wallet")
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	priv, err := primitives.PrivateKeyStringToHumanReadableFactoidPrivateKey(ServerPrivKey.PrivateKeyString())
+	if err != nil {
+		return err
+	}
+	fa, err := factom.GetFactoidAddress(priv)
+	err = w.PutFCTAddress(fa)
+	if err != nil {
+		return err
+	}
+
+	fAddress, err := factoid.PublicKeyStringToFactoidAddressString(ServerPrivKey.PublicKeyString())
+	if err != nil {
+		return err
+	}
+	go wsapi.Start(w, fmt.Sprintf(":%d", 8089))
+	defer wsapi.Stop()
+
+	ecAddress, err := factoid.PublicKeyStringToECAddressString(ServerECKey.PublicKeyString())
+	if err != nil {
+		return err
+	}
+
+	tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("tx - %v\n", tx)
+
+	return nil
 }

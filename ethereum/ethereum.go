@@ -16,15 +16,17 @@ var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
 var WalletPassword string = "pass"
 var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 var GasPrice string = "0x10FFFF"
+var IgnoreWrongEntries bool = false
 
 //"0xd36b1da5"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = c.Ethereum.WalletAddress
+	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = c.Ethereum.ContractAddress
 	GasPrice = c.Ethereum.GasPrice
-	WalletPassword = c.Ethereum.WalletPassword
+	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	//TODO: load ServerAddress into EthereumAPI
 }
@@ -72,7 +74,11 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, err
 					}
 					if ad == nil {
-						return 0, fmt.Errorf("We have anchored block from outside of our DB")
+						if IgnoreWrongEntries == false {
+							return 0, fmt.Errorf("We have anchored block from outside of our DB")
+						} else {
+							continue
+						}
 					}
 					if ad.DBlockKeyMR != keyMR {
 						fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
