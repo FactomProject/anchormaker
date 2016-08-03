@@ -1,12 +1,83 @@
 package bitcoin
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
+
+	"github.com/btcsuitereleases/btcd/btcjson"
+	//"github.com/btcsuitereleases/btcd/chaincfg"
+	//"github.com/btcsuitereleases/btcd/txscript"
+	//"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcrpcclient"
+	"github.com/btcsuitereleases/btcutil"
 )
 
-func LoadConfig(c *config.AnchorConfig) {
+var dclient, wclient *btcrpcclient.Client
+var walletLocked = true
 
+// LoadConfig is used to create rpc client for btcd and btcwallet
+// and it can be used to test connecting to btcd / btcwallet servers
+// running in different machine.
+func LoadConfig(cfg *config.AnchorConfig) error {
+	fmt.Printf("init RPC client\n")
+
+	certHomePath := cfg.Btc.CertHomePath
+	rpcClientHost := cfg.Btc.RpcClientHost
+	rpcClientEndpoint := cfg.Btc.RpcClientEndpoint
+	rpcClientUser := cfg.Btc.RpcClientUser
+	rpcClientPass := cfg.Btc.RpcClientPass
+	certHomePathBtcd := cfg.Btc.CertHomePathBtcd
+	rpcBtcdHost := cfg.Btc.RpcBtcdHost
+
+	// Connect to local btcwallet RPC server using websockets.
+	ntfnHandlers := createBtcwalletNotificationHandlers()
+	certHomeDir := btcutil.AppDataDir(certHomePath, false)
+	fmt.Printf("btcwallet.cert.home=%v\n", certHomeDir)
+	certs, err := ioutil.ReadFile(filepath.Join(certHomeDir, "rpc.cert"))
+	if err != nil {
+		return fmt.Errorf("cannot read rpc.cert file: %s\n", err)
+	}
+	connCfg := &btcrpcclient.ConnConfig{
+		Host:         rpcClientHost,
+		Endpoint:     rpcClientEndpoint,
+		User:         rpcClientUser,
+		Pass:         rpcClientPass,
+		Certificates: certs,
+	}
+	wclient, err = btcrpcclient.New(connCfg, &ntfnHandlers)
+	if err != nil {
+		return fmt.Errorf("cannot create rpc client for btcwallet: %s\n", err)
+	}
+	fmt.Printf("successfully created rpc client for btcwallet\n")
+
+	// Connect to local btcd RPC server using websockets.
+	dntfnHandlers := createBtcdNotificationHandlers()
+	certHomeDir = btcutil.AppDataDir(certHomePathBtcd, false)
+	fmt.Printf("btcd.cert.home=%v\n", certHomeDir)
+	certs, err = ioutil.ReadFile(filepath.Join(certHomeDir, "rpc.cert"))
+	if err != nil {
+		return fmt.Errorf("cannot read rpc.cert file for btcd rpc server: %s\n", err)
+	}
+	dconnCfg := &btcrpcclient.ConnConfig{
+		Host:         rpcBtcdHost,
+		Endpoint:     rpcClientEndpoint,
+		User:         rpcClientUser,
+		Pass:         rpcClientPass,
+		Certificates: certs,
+	}
+	dclient, err = btcrpcclient.New(dconnCfg, &dntfnHandlers)
+	if err != nil {
+		return fmt.Errorf("cannot create rpc client for btcd: %s\n", err)
+	}
+	fmt.Printf("successfully created rpc client for btcd\n")
+
+	//wclient.ImportAddressRescan(address, rescan)
+
+	return nil
 }
 
 func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
@@ -18,7 +89,98 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
+func createBtcwalletNotificationHandlers() btcrpcclient.NotificationHandlers {
+	ntfnHandlers := btcrpcclient.NotificationHandlers{
+		OnWalletLockState: func(locked bool) {
+			fmt.Printf("wclient: OnWalletLockState, locked=%v\n", locked)
+			walletLocked = locked
+		},
+	}
+	return ntfnHandlers
+}
+
+func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
+	ntfnHandlers := btcrpcclient.NotificationHandlers{
+		OnRedeemingTx: func(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
+			if details != nil {
+				// do not block OnRedeemingTx callback
+				//anchorLog.Info(" saveDirBlockInfo.")
+
+				//TODO: do
+				//go saveDirBlockInfo(transaction, details)
+			}
+		},
+	}
+	return ntfnHandlers
+}
+
 /*
+
+func saveDirBlockInfo(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
+	anchorLog.Debug("in saveDirBlockInfo")
+	var saved = false
+	for _, dirBlockInfo := range dirBlockInfoMap {
+		if bytes.Compare(dirBlockInfo.BTCTxHash.Bytes(), transaction.Sha().Bytes()) == 0 {
+			doSaveDirBlockInfo(transaction, details, dirBlockInfo, false)
+			saved = true
+			break
+		}
+	}
+	// This happends when there's a double spending or tx malleated(for dir block 122 and its btc tx)
+	// Original: https://www.blocktrail.com/BTC/tx/ac82f4173259494b22f4987f1e18608f38f1ff756fb4a3c637dfb5565aa5e6cf
+	// malleated: https://www.blocktrail.com/BTC/tx/a9b2d6b5d320c7f0f384a49b167524aca9c412af36ed7b15ca7ea392bccb2538
+	// re-anchored: https://www.blocktrail.com/BTC/tx/ac82f4173259494b22f4987f1e18608f38f1ff756fb4a3c637dfb5565aa5e6cf
+	// In this case, if tx malleation is detected, then use the malleated tx to replace the original tx;
+	// Otherwise, it will end up being re-anchored.
+	if !saved {
+		anchorLog.Infof("Not saved to db, (maybe btc tx malleated): btc.tx=%s\n blockDetails=%s\n", spew.Sdump(transaction), spew.Sdump(details))
+		checkTxMalleation(transaction, details)
+	}
+}
+
+func doSaveDirBlockInfo(transaction *btcutil.Tx, details *btcjson.BlockDetails, dirBlockInfo *common.DirBlockInfo, replace bool) {
+	if replace {
+		dirBlockInfo.BTCTxHash = toHash(transaction.Sha()) // in case of tx being malleated
+	}
+	dirBlockInfo.BTCTxOffset = int32(details.Index)
+	dirBlockInfo.BTCBlockHeight = details.Height
+	btcBlockHash, _ := wire.NewShaHashFromStr(details.Hash)
+	dirBlockInfo.BTCBlockHash = toHash(btcBlockHash)
+	dirBlockInfo.Timestamp = time.Now().Unix()
+	db.InsertDirBlockInfo(dirBlockInfo)
+	anchorLog.Infof("In doSaveDirBlockInfo, dirBlockInfo:%s saved to db\n", spew.Sdump(dirBlockInfo))
+
+	// to make factom / explorer more user friendly, instead of waiting for
+	// over 2 hours to know if it's anchored, we can create the anchor chain instantly
+	// then change it when the btc main chain re-org happens.
+	go saveToAnchorChain(dirBlockInfo)
+}
+
+func doTransaction(hash *common.Hash, blockHeight uint32, dirBlockInfo *common.DirBlockInfo) (*wire.ShaHash, error) {
+	b := balances[0]
+	balances = balances[1:]
+	anchorLog.Info("new balances.len=", len(balances))
+
+	msgtx, err := createRawTransaction(b, hash.Bytes(), blockHeight)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create Raw Transaction: %s", err)
+	}
+
+	shaHash, err := sendRawTransaction(msgtx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot send Raw Transaction: %s", err)
+	}
+	anchorLog.Info("btc.tx.sha=", shaHash.String())
+
+	if dirBlockInfo != nil {
+		dirBlockInfo.BTCTxHash = toHash(shaHash)
+		dirBlockInfo.Timestamp = time.Now().Unix()
+		db.InsertDirBlockInfo(dirBlockInfo)
+	}
+
+	return shaHash, nil
+}
+
 // SendRawTransactionToBTC is the main function used to anchor factom
 // dir block hash to bitcoin blockchain
 func SendRawTransactionToBTC(hash *common.Hash, blockHeight uint32) (*wire.ShaHash, error) {
@@ -168,90 +330,9 @@ func sendRawTransaction(msgtx *wire.MsgTx) (*wire.ShaHash, error) {
 	return shaHash, nil
 }
 
-func createBtcwalletNotificationHandlers() btcrpcclient.NotificationHandlers {
-	ntfnHandlers := btcrpcclient.NotificationHandlers{
-		OnWalletLockState: func(locked bool) {
-			anchorLog.Info("wclient: OnWalletLockState, locked=", locked)
-			walletLocked = locked
-		},
-	}
-	return ntfnHandlers
-}
-
-func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
-	ntfnHandlers := btcrpcclient.NotificationHandlers{
-		OnRedeemingTx: func(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
-			if details != nil {
-				// do not block OnRedeemingTx callback
-				//anchorLog.Info(" saveDirBlockInfo.")
-				go saveDirBlockInfo(transaction, details)
-			}
-		},
-	}
-	return ntfnHandlers
-}
 
 
-// InitRPCClient is used to create rpc client for btcd and btcwallet
-// and it can be used to test connecting to btcd / btcwallet servers
-// running in different machine.
-func InitRPCClient() error {
-	anchorLog.Debug("init RPC client")
-	if cfg == nil {
-		readConfig()
-	}
-	certHomePath := cfg.Btc.CertHomePath
-	rpcClientHost := cfg.Btc.RpcClientHost
-	rpcClientEndpoint := cfg.Btc.RpcClientEndpoint
-	rpcClientUser := cfg.Btc.RpcClientUser
-	rpcClientPass := cfg.Btc.RpcClientPass
-	certHomePathBtcd := cfg.Btc.CertHomePathBtcd
-	rpcBtcdHost := cfg.Btc.RpcBtcdHost
 
-	// Connect to local btcwallet RPC server using websockets.
-	ntfnHandlers := createBtcwalletNotificationHandlers()
-	certHomeDir := btcutil.AppDataDir(certHomePath, false)
-	anchorLog.Debug("btcwallet.cert.home=", certHomeDir)
-	certs, err := ioutil.ReadFile(filepath.Join(certHomeDir, "rpc.cert"))
-	if err != nil {
-		return fmt.Errorf("cannot read rpc.cert file: %s\n", err)
-	}
-	connCfg := &btcrpcclient.ConnConfig{
-		Host:         rpcClientHost,
-		Endpoint:     rpcClientEndpoint,
-		User:         rpcClientUser,
-		Pass:         rpcClientPass,
-		Certificates: certs,
-	}
-	wclient, err = btcrpcclient.New(connCfg, &ntfnHandlers)
-	if err != nil {
-		return fmt.Errorf("cannot create rpc client for btcwallet: %s\n", err)
-	}
-	anchorLog.Debug("successfully created rpc client for btcwallet")
-
-	// Connect to local btcd RPC server using websockets.
-	dntfnHandlers := createBtcdNotificationHandlers()
-	certHomeDir = btcutil.AppDataDir(certHomePathBtcd, false)
-	anchorLog.Debug("btcd.cert.home=", certHomeDir)
-	certs, err = ioutil.ReadFile(filepath.Join(certHomeDir, "rpc.cert"))
-	if err != nil {
-		return fmt.Errorf("cannot read rpc.cert file for btcd rpc server: %s\n", err)
-	}
-	dconnCfg := &btcrpcclient.ConnConfig{
-		Host:         rpcBtcdHost,
-		Endpoint:     rpcClientEndpoint,
-		User:         rpcClientUser,
-		Pass:         rpcClientPass,
-		Certificates: certs,
-	}
-	dclient, err = btcrpcclient.New(dconnCfg, &dntfnHandlers)
-	if err != nil {
-		return fmt.Errorf("cannot create rpc client for btcd: %s\n", err)
-	}
-	anchorLog.Debug("successfully created rpc client for btcd")
-
-	return nil
-}
 
 func unlockWallet(timeoutSecs int64) error {
 	err := wclient.WalletPassphrase(cfg.Btc.WalletPassphrase, int64(timeoutSecs))

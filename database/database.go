@@ -5,7 +5,7 @@ import (
 
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/database/databaseOverlay"
-	"github.com/FactomProject/factomd/database/leveldb"
+	"github.com/FactomProject/factomd/database/hybridDB"
 	"github.com/FactomProject/factomd/database/mapdb"
 )
 
@@ -26,20 +26,30 @@ func NewMapDB() *AnchorDatabaseOverlay {
 }
 
 func NewLevelDB(ldbpath string) (*AnchorDatabaseOverlay, error) {
-	db, err := leveldb.NewLevelDB(ldbpath, false)
+	db, err := hybridDB.NewLevelMapHybridDB(ldbpath, false)
 	if err != nil {
 		fmt.Printf("err opening db: %v\n", err)
 	}
 
 	if db == nil {
 		fmt.Println("Creating new db ...")
-		db, err = leveldb.NewLevelDB(ldbpath, true)
+		db, err = hybridDB.NewLevelMapHybridDB(ldbpath, true)
 
 		if err != nil {
 			return nil, err
 		}
 	}
 	fmt.Println("Database started from: " + ldbpath)
+	return NewAnchorOverlay(db), nil
+}
+
+func NewBoltDB(boltPath string) (*AnchorDatabaseOverlay, error) {
+	db := hybridDB.NewBoltMapHybridDB(nil, boltPath)
+	/*if err != nil {
+		fmt.Printf("err opening db: %v\n", err)
+	}*/
+
+	fmt.Println("Database started from: " + boltPath)
 	return NewAnchorOverlay(db), nil
 }
 

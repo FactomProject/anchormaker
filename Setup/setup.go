@@ -10,6 +10,7 @@ import (
 	anchorFactom "github.com/FactomProject/anchormaker/factom"
 
 	"github.com/FactomProject/factomd/common/entryBlock"
+	"github.com/FactomProject/factomd/common/primitives"
 )
 
 func main() {
@@ -31,10 +32,10 @@ func main() {
 			fmt.Printf("EC and F Balances are too low, can't do anything!\n")
 			return
 		}
-		/*err = anchorFactom.TopupECAddress()
+		err = anchorFactom.TopupECAddress()
 		if err != nil {
 			panic(err)
-		}*/
+		}
 	}
 
 	err = CheckAndCreateBitcoinAnchorChain()
@@ -46,9 +47,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	/*
-		tx, err := factom.FactoidACK("579082d3fd55f3edb110de1e15e835b9d9f9c9d5349500360fcd135e56ee9425", "")
-		fmt.Printf("tx, err - %v, %v", tx, err)*/
+
+	tx, err := factom.FactoidACK("1ad571ea8afdb0297c53f2ebc038ad99468ee9e4939ee24d6a89d5ec1da753db", "")
+	str, err := primitives.EncodeJSONString(tx)
+	fmt.Printf("tx, err - %v, %v\n", str, err)
+
+	txResp, err := factom.GetTransaction("1ad571ea8afdb0297c53f2ebc038ad99468ee9e4939ee24d6a89d5ec1da753db")
+	str, err = primitives.EncodeJSONString(txResp)
+	fmt.Printf("txResp, err - %v, %v\n", str, err)
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {

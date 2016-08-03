@@ -2,6 +2,7 @@ package factom
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/FactomProject/factom"
 	"github.com/FactomProject/factom/wallet"
@@ -25,8 +26,6 @@ var ServerPrivKey *primitives.PrivateKey
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
 
-var ldbPath string
-
 func LoadConfig(c *config.AnchorConfig) {
 	AnchorSigPublicKey = new(primitives.PublicKey)
 	err := AnchorSigPublicKey.UnmarshalText([]byte(c.Anchor.AnchorSigPublicKey))
@@ -45,8 +44,6 @@ func LoadConfig(c *config.AnchorConfig) {
 		panic(err)
 	}
 	ServerPrivKey = key
-
-	ldbPath = c.App.LdbPath
 
 	FactoidBalanceThreshold = c.Factom.FactoidBalanceThreshold
 	ECBalanceThreshold = c.Factom.ECBalanceThreshold
@@ -344,7 +341,8 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 }
 
 func TopupECAddress() error {
-	w, err := wallet.NewOrOpenWallet(ldbPath + "Wallet")
+	fmt.Printf("TopupECAddress\n")
+	w, err := wallet.NewMapDBWallet()
 	if err != nil {
 		return err
 	}
@@ -354,7 +352,7 @@ func TopupECAddress() error {
 		return err
 	}
 	fa, err := factom.GetFactoidAddress(priv)
-	err = w.PutFCTAddress(fa)
+	err = w.InsertFCTAddress(fa)
 	if err != nil {
 		return err
 	}
@@ -364,19 +362,24 @@ func TopupECAddress() error {
 		return err
 	}
 	go wsapi.Start(w, fmt.Sprintf(":%d", 8089))
-	defer wsapi.Stop()
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		wsapi.Stop()
+	}()
 
 	ecAddress, err := factoid.PublicKeyStringToECAddressString(ServerECKey.PublicKeyString())
 	if err != nil {
 		return err
 	}
 
-	tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
-	if err != nil {
-		return err
-	}
+	fmt.Printf("TopupECAddress - %v, %v\n", fAddress, ecAddress)
+	/*
+		tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
+		if err != nil {
+			return err
+		}
 
-	fmt.Printf("tx - %v\n", tx)
+	fmt.Printf("tx - %v\n", tx)*/
 
 	return nil
 }
