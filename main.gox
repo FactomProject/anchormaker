@@ -44,7 +44,6 @@ var (
 	minBalance       btcutil.Amount
 	noBalanceString  = "\n\n$$$ WARNING: No balance in your wallet. No anchoring for now.\n"
 
-	fee                 btcutil.Amount // tx fee for written into btc
 	confirmationsNeeded int
 
 	//Server Private key for milestone 1
