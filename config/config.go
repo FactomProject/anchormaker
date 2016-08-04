@@ -90,7 +90,7 @@ ConfirmationsNeeded					= 20
 ; Factom settings
 ; ------------------------------------------------------------------------------
 [factom]
-FactomdAddress						= "13.84.217.234:8088"
+FactomdAddress						= "qatest.factom.org:8088"
 WalletAddress						= "localhost:8089"
 FactoidBalanceThreshold				= 100
 ECBalanceThreshold					= 1000
