@@ -376,32 +376,34 @@ func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.I
 	return err
 }*/
 
-func JustFactomize(entry *entryBlock.Entry) error {
+func JustFactomize(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
 	//fmt.Printf("Entry - %v\n", entry)
 	j, err := entry.JSONByte()
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	e := new(factom.Entry)
 	err = e.UnmarshalJSON(j)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	//Commit and reveal
-	if _, err := factom.CommitEntry(e, ECAddress); err != nil {
+	tx1, err := factom.CommitEntry(e, ECAddress)
+	if err != nil {
 		fmt.Println("Entry commit error : ", err)
-		return err
+		return "", "", err
 	}
 
 	time.Sleep(3 * time.Second)
-	if _, err := factom.RevealEntry(e); err != nil {
+	tx2, err := factom.RevealEntry(e)
+	if err != nil {
 		fmt.Println("Entry reveal error : ", err)
-		return err
+		return "", "", err
 	}
 
-	return nil
+	return tx1, tx2, nil
 }
 
 func TopupECAddress() error {

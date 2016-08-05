@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/FactomProject/factom"
 
@@ -96,12 +97,54 @@ func CheckAndCreateEthereumAnchorchain() error {
 }
 
 func CreateChain(e *entryBlock.Entry) error {
-	err := anchorFactom.JustFactomize(e)
+	tx1, tx2, err := anchorFactom.JustFactomize(e)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Created chain %v\n", e.GetChainID())
+	fmt.Printf("Created chain %v - %v, %v\n", e.GetChainID(), tx1, tx2)
+
+	for {
+		time.Sleep(5 * time.Second)
+		ack, err := factom.FactoidACK(tx1, "")
+		if err != nil {
+			panic(err)
+		}
+		str, err := primitives.EncodeJSONString(ack)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("ack1 - %v\r", str)
+
+		if ack.Status != "DBlockConfirmed" {
+			continue
+		}
+		fmt.Printf("ack1 - %v\n", str)
+
+		break
+	}
+
+	for {
+		time.Sleep(5 * time.Second)
+		ack, err := factom.FactoidACK(tx2, "")
+		if err != nil {
+			panic(err)
+		}
+
+		str, err := primitives.EncodeJSONString(ack)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("ack2 - %v\r", str)
+
+		if ack.Status != "DBlockConfirmed" {
+			continue
+		}
+
+		fmt.Printf("ack2 - %v\n", str)
+
+		break
+	}
 
 	return nil
 }
