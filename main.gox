@@ -439,29 +439,6 @@ func updateUTXO(base btcutil.Amount) error {
 	return nil
 }
 
-func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
-	anchorLog.Debug("in saveToAnchorChain")
-	anchorRec := new(AnchorRecord)
-	anchorRec.AnchorRecordVer = 1
-	anchorRec.DBHeight = dirBlockInfo.DBHeight
-	anchorRec.KeyMR = dirBlockInfo.DBMerkleRoot.String()
-	_, recordHeight, _ := db.FetchBlockHeightCache()
-	anchorRec.RecordHeight = uint32(recordHeight + 1) // need the next block height
-	if defaultAddress != nil {
-		anchorRec.Bitcoin.Address = defaultAddress.String()
-	}
-	anchorRec.Bitcoin.TXID = dirBlockInfo.BTCTxHash.BTCString()
-	anchorRec.Bitcoin.BlockHeight = dirBlockInfo.BTCBlockHeight
-	anchorRec.Bitcoin.BlockHash = dirBlockInfo.BTCBlockHash.BTCString()
-	anchorRec.Bitcoin.Offset = dirBlockInfo.BTCTxOffset
-	anchorLog.Info("before submitting Entry To AnchorChain. anchor.record: " + spew.Sdump(anchorRec))
-
-	err := submitEntryToAnchorChain(anchorRec)
-	if err != nil {
-		anchorLog.Error("Error in writing anchor into anchor chain: ", err.Error())
-	}
-}
-
 
 func toShaHash(hash *common.Hash) *wire.ShaHash {
 	h, _ := wire.NewShaHash(hash.Bytes())
@@ -604,29 +581,6 @@ func checkTxMalleation(transaction *btcutil.Tx, details *btcjson.BlockDetails) {
 			break
 		}
 	}
-}
-
-//Construct the entry and submit it to the server
-func submitEntryToAnchorChain(aRecord *AnchorRecord) error {
-	//Marshal aRecord into json
-	jsonARecord, err := json.Marshal(aRecord)
-	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: ", string(jsonARecord))
-	if err != nil {
-		return err
-	}
-	bufARecord := new(bytes.Buffer)
-	bufARecord.Write(jsonARecord)
-	//Sign the json aRecord with the server key
-	aRecordSig := serverPrivKey.Sign(jsonARecord)
-	//Encode sig into Hex string
-	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Sig[:])))
-
-	entry := factom.NewEntry()
-	entry.ChainID = cfg.Anchor.AnchorChainID
-	entry.Content = bufARecord.Bytes()
-	err = primitives.JustFactomize(entry, cfg.Anchor.ServerECKey)
-
-	return err
 }
 
 // MilliTime returns a 6 byte slice representing the unix time in milliseconds

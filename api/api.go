@@ -31,7 +31,7 @@ func GetECBalance(ecPublicKey string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("GetECBalance %v, %v\n", ecPublicKey, ecAddress)
+	//fmt.Printf("GetECBalance %v, %v\n", ecPublicKey, ecAddress)
 
 	balance, err := factom.GetECBalance(ecAddress)
 	if err != nil {
@@ -45,7 +45,7 @@ func GetFactoidBalance(factoidPublicKey string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("GetFactoidBalance %v, %v\n", factoidPublicKey, fAddress)
+	//fmt.Printf("GetFactoidBalance %v, %v\n", factoidPublicKey, fAddress)
 
 	balance, err := factom.GetFactoidBalance(fAddress)
 	if err != nil {

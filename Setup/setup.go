@@ -47,14 +47,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	tx, err := factom.FactoidACK("1ad571ea8afdb0297c53f2ebc038ad99468ee9e4939ee24d6a89d5ec1da753db", "")
-	str, err := primitives.EncodeJSONString(tx)
-	fmt.Printf("tx, err - %v, %v\n", str, err)
-
-	txResp, err := factom.GetTransaction("1ad571ea8afdb0297c53f2ebc038ad99468ee9e4939ee24d6a89d5ec1da753db")
-	str, err = primitives.EncodeJSONString(txResp)
-	fmt.Printf("txResp, err - %v, %v\n", str, err)
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {
@@ -104,7 +96,13 @@ func CheckAndCreateEthereumAnchorchain() error {
 }
 
 func CreateChain(e *entryBlock.Entry) error {
+	err := anchorFactom.JustFactomize(e)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Created chain %v\n", e.GetChainID())
+
 	return nil
 }
 
@@ -112,8 +110,8 @@ func CreateFirstBitcoinAnchorEntry() *entryBlock.Entry {
 	answer := new(entryBlock.Entry)
 
 	answer.Version = 0
-	answer.ExtIDs = [][]byte{[]byte("FactomAnchorChain")}
-	answer.Content = []byte("This is the Factom anchor chain, which records the anchors Factom puts on Bitcoin and other networks.\n")
+	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomAnchorChain")}}
+	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom anchor chain, which records the anchors Factom puts on Bitcoin and other networks.\n")}
 	answer.ChainID = entryBlock.NewChainID(answer)
 
 	return answer
@@ -123,8 +121,8 @@ func CreateFirstEthereumAnchorEntry() *entryBlock.Entry {
 	answer := new(entryBlock.Entry)
 
 	answer.Version = 0
-	answer.ExtIDs = [][]byte{[]byte("FactomEthereumAnchorChain")}
-	answer.Content = []byte("This is the Factom Ethereum anchor chain, which records the anchors Factom puts on the Ethereum network.\n")
+	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomEthereumAnchorChain")}}
+	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom Ethereum anchor chain, which records the anchors Factom puts on the Ethereum network.\n")}
 	answer.ChainID = entryBlock.NewChainID(answer)
 
 	return answer

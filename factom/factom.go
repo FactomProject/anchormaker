@@ -13,6 +13,7 @@ import (
 	"github.com/FactomProject/anchormaker/database"
 
 	"github.com/FactomProject/factomd/anchor"
+	"github.com/FactomProject/factomd/common/entryBlock"
 	"github.com/FactomProject/factomd/common/factoid"
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/common/primitives"
@@ -22,6 +23,7 @@ var AnchorSigPublicKey *primitives.PublicKey
 
 var ServerECKey *primitives.PrivateKey
 var ServerPrivKey *primitives.PrivateKey
+var ECAddress *factom.ECAddress
 
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
@@ -38,6 +40,12 @@ func LoadConfig(c *config.AnchorConfig) {
 		panic(err)
 	}
 	ServerECKey = key
+
+	ecAddress, err := factom.MakeECAddress(key.Key[:32])
+	if err != nil {
+		panic(err)
+	}
+	ECAddress = ecAddress
 
 	key, err = primitives.NewPrivateKeyFromHex(c.App.ServerPrivKey)
 	if err != nil {
@@ -110,6 +118,10 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for {
 		keymr := dBlock.GetHeader().GetPrevKeyMR().String()
 		if keymr == endKeyMR {
+			startHeight = int(dBlock.GetDatabaseHeight())
+			break
+		}
+		if keymr == "0000000000000000000000000000000000000000000000000000000000000000" {
 			startHeight = int(dBlock.GetDatabaseHeight())
 			break
 		}
@@ -270,7 +282,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 			//Bitcoin anchor
 			//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
-			if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "" {
+			if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "" {
 				anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
 
 				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
@@ -291,7 +303,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 			//Ethereum anchor
 			//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
-			if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "" {
+			if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "" {
 				anchorRecord.Ethereum = new(anchor.EthereumStruct)
 
 				anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
@@ -340,6 +352,58 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	return "", nil
 }
 
+/*
+//Construct the entry and submit it to the server
+func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) error {
+	//Marshal aRecord into json
+	jsonARecord, err := json.Marshal(aRecord)
+	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: ", string(jsonARecord))
+	if err != nil {
+		return err
+	}
+	bufARecord := new(bytes.Buffer)
+	bufARecord.Write(jsonARecord)
+	//Sign the json aRecord with the server key
+	aRecordSig := serverPrivKey.Sign(jsonARecord)
+	//Encode sig into Hex string
+	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Sig[:])))
+
+	entry := factom.NewEntry()
+	entry.ChainID = cfg.Anchor.AnchorChainID
+	entry.Content = bufARecord.Bytes()
+	err = primitives.JustFactomize(entry, cfg.Anchor.ServerECKey)
+
+	return err
+}*/
+
+func JustFactomize(entry *entryBlock.Entry) error {
+	//Convert entryBlock Entry into factom Entry
+	//fmt.Printf("Entry - %v\n", entry)
+	j, err := entry.JSONByte()
+	if err != nil {
+		return err
+	}
+	e := new(factom.Entry)
+	err = e.UnmarshalJSON(j)
+	if err != nil {
+		return err
+	}
+
+	//Commit and reveal
+	if _, err := factom.CommitEntry(e, ECAddress); err != nil {
+		fmt.Println("Entry commit error : ", err)
+		return err
+	}
+
+	time.Sleep(3 * time.Second)
+	if _, err := factom.RevealEntry(e); err != nil {
+		fmt.Println("Entry reveal error : ", err)
+		return err
+	}
+
+	return nil
+}
+
 func TopupECAddress() error {
 	fmt.Printf("TopupECAddress\n")
 	w, err := wallet.NewMapDBWallet()
@@ -383,3 +447,33 @@ func TopupECAddress() error {
 
 	return nil
 }
+
+/*
+
+func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
+	anchorLog.Debug("in saveToAnchorChain")
+	anchorRec := new(AnchorRecord)
+	anchorRec.AnchorRecordVer = 1
+	anchorRec.DBHeight = dirBlockInfo.DBHeight
+	anchorRec.KeyMR = dirBlockInfo.DBMerkleRoot.String()
+	_, recordHeight, _ := db.FetchBlockHeightCache()
+	anchorRec.RecordHeight = uint32(recordHeight + 1) // need the next block height
+	if defaultAddress != nil {
+		anchorRec.Bitcoin.Address = defaultAddress.String()
+	}
+	anchorRec.Bitcoin.TXID = dirBlockInfo.BTCTxHash.BTCString()
+	anchorRec.Bitcoin.BlockHeight = dirBlockInfo.BTCBlockHeight
+	anchorRec.Bitcoin.BlockHash = dirBlockInfo.BTCBlockHash.BTCString()
+	anchorRec.Bitcoin.Offset = dirBlockInfo.BTCTxOffset
+	anchorLog.Info("before submitting Entry To AnchorChain. anchor.record: " + spew.Sdump(anchorRec))
+
+	err := submitEntryToAnchorChain(anchorRec)
+	if err != nil {
+		anchorLog.Error("Error in writing anchor into anchor chain: ", err.Error())
+	}
+}
+
+
+
+
+*/
