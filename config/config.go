@@ -93,9 +93,10 @@ ConfirmationsNeeded					= 20
 ; ------------------------------------------------------------------------------
 [factom]
 FactomdAddress						= "qatest.factom.org:8088"
+;FactomdAddress						= "localhost:8088"
 WalletAddress						= "localhost:8089"
 FactoidBalanceThreshold				= 100
-ECBalanceThreshold					= 1000
+ECBalanceThreshold					= 10000
 ; ------------------------------------------------------------------------------
 ; Bitcoin settings
 ; ------------------------------------------------------------------------------

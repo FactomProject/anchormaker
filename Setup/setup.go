@@ -97,14 +97,15 @@ func CheckAndCreateEthereumAnchorchain() error {
 }
 
 func CreateChain(e *entryBlock.Entry) error {
-	tx1, tx2, err := anchorFactom.JustFactomize(e)
+	tx1, tx2, err := anchorFactom.JustFactomizeChain(e)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("Created chain %v - %v, %v\n", e.GetChainID(), tx1, tx2)
 
-	for {
+	for i := 0; ; i++ {
+		i = i % 3
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx1, "")
 		if err != nil {
@@ -114,7 +115,11 @@ func CreateChain(e *entryBlock.Entry) error {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("ack1 - %v\r", str)
+		fmt.Printf("ack1 - %v", str)
+		for j := 0; j < i+1; j++ {
+			fmt.Printf(".")
+		}
+		fmt.Printf("  \r")
 
 		if ack.Status != "DBlockConfirmed" {
 			continue
@@ -124,7 +129,8 @@ func CreateChain(e *entryBlock.Entry) error {
 		break
 	}
 
-	for {
+	for i := 0; ; i++ {
+		i = i % 3
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx2, "")
 		if err != nil {
@@ -135,7 +141,11 @@ func CreateChain(e *entryBlock.Entry) error {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("ack2 - %v\r", str)
+		fmt.Printf("ack2 - %v", str)
+		for j := 0; j < i+1; j++ {
+			fmt.Printf(".")
+		}
+		fmt.Printf("  \r")
 
 		if ack.Status != "DBlockConfirmed" {
 			continue

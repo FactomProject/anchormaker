@@ -376,6 +376,37 @@ func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.I
 	return err
 }*/
 
+func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {
+	//Convert entryBlock Entry into factom Entry
+	//fmt.Printf("Entry - %v\n", entry)
+	j, err := entry.JSONByte()
+	if err != nil {
+		return "", "", err
+	}
+	e := new(factom.Entry)
+	err = e.UnmarshalJSON(j)
+	if err != nil {
+		return "", "", err
+	}
+
+	chain := factom.NewChain(e)
+
+	//Commit and reveal
+	tx1, err := factom.CommitChain(chain, ECAddress)
+	if err != nil {
+		fmt.Println("Entry commit error : ", err)
+		return "", "", err
+	}
+
+	time.Sleep(10 * time.Second)
+	tx2, err := factom.RevealChain(chain)
+	if err != nil {
+		fmt.Println("Entry reveal error : ", err)
+		return "", "", err
+	}
+
+	return tx1, tx2, nil
+}
 func JustFactomize(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
 	//fmt.Printf("Entry - %v\n", entry)
@@ -439,13 +470,13 @@ func TopupECAddress() error {
 	}
 
 	fmt.Printf("TopupECAddress - %v, %v\n", fAddress, ecAddress)
-	/*
-		tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
-		if err != nil {
-			return err
-		}
 
-	fmt.Printf("tx - %v\n", tx)*/
+	tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("tx - %v\n", tx)
 
 	return nil
 }
