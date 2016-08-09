@@ -1,6 +1,9 @@
 package factom
 
 import (
+	"bytes"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/FactomProject/factom/wallet"
 	"github.com/FactomProject/factom/wallet/wsapi"
 
+	"github.com/FactomProject/anchormaker/anchorLog"
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
@@ -271,7 +275,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 	}
-	for {
+	for i := 0; i < 10; {
 		//Only anchor records that haven't been anchored before
 		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
 			anchorRecord := new(anchor.AnchorRecord)
@@ -316,8 +320,6 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 				if err != nil {
 					return err
 				}
-				anchorData.BitcoinRecordEntryHash = tx
-
 				anchorData.EthereumRecordEntryHash = tx
 
 				//Resetting AnchorRecord
@@ -328,6 +330,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			if err != nil {
 				return err
 			}
+			i++
 		}
 		anchorData, err = dbo.FetchAnchorData(anchorData.DBlockHeight + 1)
 		if err != nil {
@@ -344,37 +347,47 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Anchoring %v\n", ar)
 	if ar.Bitcoin != nil {
-
+		txID, err := submitEntryToAnchorChain(ar, GetBitcoinAnchorChainID())
+		if err != nil {
+			return "", err
+		}
+		return txID, nil
 	}
 	if ar.Ethereum != nil {
-
+		txID, err := submitEntryToAnchorChain(ar, GetEthereumAnchorChainID())
+		if err != nil {
+			return "", err
+		}
+		return txID, nil
 	}
 	return "", nil
 }
 
-/*
 //Construct the entry and submit it to the server
-func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) error {
+func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) (string, error) {
 	//Marshal aRecord into json
 	jsonARecord, err := json.Marshal(aRecord)
-	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: ", string(jsonARecord))
+	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: %v", string(jsonARecord))
 	if err != nil {
-		return err
+		return "", err
 	}
 	bufARecord := new(bytes.Buffer)
 	bufARecord.Write(jsonARecord)
 	//Sign the json aRecord with the server key
-	aRecordSig := serverPrivKey.Sign(jsonARecord)
+	aRecordSig := ServerPrivKey.Sign(jsonARecord)
 	//Encode sig into Hex string
-	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Sig[:])))
+	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Bytes())))
 
-	entry := factom.NewEntry()
-	entry.ChainID = cfg.Anchor.AnchorChainID
-	entry.Content = bufARecord.Bytes()
-	err = primitives.JustFactomize(entry, cfg.Anchor.ServerECKey)
+	entry := new(entryBlock.Entry)
+	entry.ChainID = chainID
+	entry.Content = primitives.ByteSlice{Bytes: bufARecord.Bytes()}
+	_, txID, err := JustFactomize(entry)
+	if err != nil {
+		return "", err
+	}
 
-	return err
-}*/
+	return txID, err
+}
 
 func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
@@ -510,3 +523,35 @@ func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
 
 
 */
+
+func GetBitcoinAnchorChainID() interfaces.IHash {
+	e := CreateFirstBitcoinAnchorEntry()
+	return e.ChainID
+}
+
+func GetEthereumAnchorChainID() interfaces.IHash {
+	e := CreateFirstEthereumAnchorEntry()
+	return e.ChainID
+}
+
+func CreateFirstBitcoinAnchorEntry() *entryBlock.Entry {
+	answer := new(entryBlock.Entry)
+
+	answer.Version = 0
+	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomAnchorChain")}}
+	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom anchor chain, which records the anchors Factom puts on Bitcoin and other networks.\n")}
+	answer.ChainID = entryBlock.NewChainID(answer)
+
+	return answer
+}
+
+func CreateFirstEthereumAnchorEntry() *entryBlock.Entry {
+	answer := new(entryBlock.Entry)
+
+	answer.Version = 0
+	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomEthereumAnchorChain")}}
+	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom Ethereum anchor chain, which records the anchors Factom puts on the Ethereum network.\n")}
+	answer.ChainID = entryBlock.NewChainID(answer)
+
+	return answer
+}

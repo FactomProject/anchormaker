@@ -51,7 +51,7 @@ func main() {
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {
-	anchor := CreateFirstBitcoinAnchorEntry()
+	anchor := anchorFactom.CreateFirstBitcoinAnchorEntry()
 	chainID := anchor.GetChainID()
 
 	head, err := factom.GetChainHead(chainID.String())
@@ -74,7 +74,7 @@ func CheckAndCreateBitcoinAnchorChain() error {
 }
 
 func CheckAndCreateEthereumAnchorchain() error {
-	anchor := CreateFirstEthereumAnchorEntry()
+	anchor := anchorFactom.CreateFirstEthereumAnchorEntry()
 	chainID := anchor.GetChainID()
 
 	head, err := factom.GetChainHead(chainID.String())
@@ -157,26 +157,4 @@ func CreateChain(e *entryBlock.Entry) error {
 	}
 
 	return nil
-}
-
-func CreateFirstBitcoinAnchorEntry() *entryBlock.Entry {
-	answer := new(entryBlock.Entry)
-
-	answer.Version = 0
-	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomAnchorChain")}}
-	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom anchor chain, which records the anchors Factom puts on Bitcoin and other networks.\n")}
-	answer.ChainID = entryBlock.NewChainID(answer)
-
-	return answer
-}
-
-func CreateFirstEthereumAnchorEntry() *entryBlock.Entry {
-	answer := new(entryBlock.Entry)
-
-	answer.Version = 0
-	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomEthereumAnchorChain")}}
-	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom Ethereum anchor chain, which records the anchors Factom puts on the Ethereum network.\n")}
-	answer.ChainID = entryBlock.NewChainID(answer)
-
-	return answer
 }

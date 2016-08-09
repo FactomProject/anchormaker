@@ -164,7 +164,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		height = ad.DBlockHeight + 1
 	}
 
-	for {
+	for i := 0; i < 10; {
 		ad, err = dbo.FetchAnchorData(height)
 		if err != nil {
 			return err
@@ -191,6 +191,8 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 			return err
 		}
 		height = ad.DBlockHeight + 1
+
+		i++
 	}
 
 	return nil
