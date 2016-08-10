@@ -62,7 +62,7 @@ func (e *AnchorData) String() string {
 var _ interfaces.DatabaseBatchable = (*AnchorData)(nil)
 
 func (c *AnchorData) IsComplete() bool {
-	return (c.BitcoinRecordHeight > 0) && (c.EthereumRecordHeight > 0)
+	return (c.EthereumRecordHeight > 0) //(c.BitcoinRecordHeight > 0) && (c.EthereumRecordHeight > 0)
 }
 
 func (c *AnchorData) New() interfaces.BinaryMarshallableAndCopyable {

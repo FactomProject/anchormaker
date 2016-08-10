@@ -51,7 +51,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 		var lastBlock int64 = 0
 
-		fmt.Printf("Tx count - %v\n", len(txs))
+		fmt.Printf("Ethereum Tx count - %v\n", len(txs))
 
 		for _, tx := range txs {
 			txCount++

@@ -147,6 +147,22 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		dBlock = dBlockList[i]
 		for _, v := range dBlock.GetDBEntries() {
 			//Looking for Bitcoin and Ethereum anchors
+
+			/*
+
+
+
+
+
+
+			   DOOOOOOOO
+
+
+
+
+
+
+			*/
 			if v.GetChainID().String() == "df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604" {
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
@@ -196,6 +212,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.Bitcoin.Offset = ar.Bitcoin.Offset
 
 						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
+						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.BitcoinRecordEntryHash = eh.String()
 					}
 					if ar.Ethereum != nil {
@@ -206,6 +223,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.Ethereum.Offset = ar.Ethereum.Offset
 
 						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
+						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.EthereumRecordEntryHash = eh.String()
 					}
 
@@ -524,11 +542,13 @@ func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
 
 */
 
+//df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
 func GetBitcoinAnchorChainID() interfaces.IHash {
 	e := CreateFirstBitcoinAnchorEntry()
 	return e.ChainID
 }
 
+//6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
 func GetEthereumAnchorChainID() interfaces.IHash {
 	e := CreateFirstEthereumAnchorEntry()
 	return e.ChainID

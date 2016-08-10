@@ -16,10 +16,27 @@ import (
 func main() {
 	c := config.ReadConfig()
 
-	//dbo := database.NewMapDB()
-	dbo, err := database.NewLevelDB(c.App.LdbPath)
-	if err != nil {
-		panic(err)
+	dbo := database.NewMapDB()
+	var err error
+
+	if c.App.DBType == "Map" {
+		fmt.Printf("Starting Map database\n")
+		dbo = database.NewMapDB()
+	}
+
+	if c.App.DBType == "LDB" {
+		fmt.Printf("Starting Level database\n")
+		dbo, err = database.NewLevelDB(c.App.LdbPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+	if c.App.DBType == "Bolt" {
+		fmt.Printf("Starting Bolt database\n")
+		dbo, err = database.NewBoltDB(c.App.BoltPath)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	//bitcoin.LoadConfig(c)
