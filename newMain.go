@@ -11,10 +11,18 @@ import (
 	"github.com/FactomProject/anchormaker/database"
 	"github.com/FactomProject/anchormaker/ethereum"
 	"github.com/FactomProject/anchormaker/factom"
+	"github.com/FactomProject/anchormaker/setup"
 )
 
 func main() {
 	c := config.ReadConfig()
+
+	//bitcoin.LoadConfig(c)
+	ethereum.LoadConfig(c)
+	factom.LoadConfig(c)
+	api.SetServer(c.Factom.FactomdAddress)
+
+	setup.Setup(c)
 
 	dbo := database.NewMapDB()
 	var err error
@@ -38,11 +46,6 @@ func main() {
 			panic(err)
 		}
 	}
-
-	//bitcoin.LoadConfig(c)
-	ethereum.LoadConfig(c)
-	factom.LoadConfig(c)
-	api.SetServer(c.Factom.FactomdAddress)
 
 	var interruptChannel chan os.Signal
 	interruptChannel = make(chan os.Signal, 1)

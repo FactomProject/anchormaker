@@ -32,6 +32,25 @@ var ECAddress *factom.ECAddress
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
 
+//df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
+var BitcoinAnchorChainID interfaces.IHash
+
+//6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
+var EthereumAnchorChainID interfaces.IHash
+
+var FirstBitcoinAnchorChainEntryHash interfaces.IHash
+var FirstEthereumAnchorChainEntryHash interfaces.IHash
+
+func init() {
+	e := CreateFirstBitcoinAnchorEntry()
+	BitcoinAnchorChainID = e.ChainID
+	FirstBitcoinAnchorChainEntryHash = e.GetHash()
+
+	e = CreateFirstEthereumAnchorEntry()
+	EthereumAnchorChainID = e.ChainID
+	FirstEthereumAnchorChainEntryHash = e.GetHash()
+}
+
 func LoadConfig(c *config.AnchorConfig) {
 	AnchorSigPublicKey = new(primitives.PublicKey)
 	err := AnchorSigPublicKey.UnmarshalText([]byte(c.Anchor.AnchorSigPublicKey))
@@ -163,7 +182,9 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 
 			*/
-			if v.GetChainID().String() == "df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604" {
+
+			if v.GetChainID().String() == BitcoinAnchorChainID.String() || v.GetChainID().String() == EthereumAnchorChainID.String() {
+				fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
 					return 0, err
@@ -172,7 +193,8 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if eh.IsMinuteMarker() == true {
 						continue
 					}
-					if eh.String() == "24674e6bc3094eb773297de955ee095a05830e431da13a37382dcdc89d73c7d7" {
+					fmt.Printf("\t%v\n", eh.String())
+					if eh.String() == FirstBitcoinAnchorChainEntryHash.String() || eh.String() == FirstEthereumAnchorChainEntryHash.String() {
 						continue
 					}
 					fmt.Printf("Fetching %v\n", eh.String())
@@ -365,14 +387,14 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Anchoring %v\n", ar)
 	if ar.Bitcoin != nil {
-		txID, err := submitEntryToAnchorChain(ar, GetBitcoinAnchorChainID())
+		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
 		if err != nil {
 			return "", err
 		}
 		return txID, nil
 	}
 	if ar.Ethereum != nil {
-		txID, err := submitEntryToAnchorChain(ar, GetEthereumAnchorChainID())
+		txID, err := submitEntryToAnchorChain(ar, EthereumAnchorChainID)
 		if err != nil {
 			return "", err
 		}
@@ -507,7 +529,42 @@ func TopupECAddress() error {
 		return err
 	}
 
-	fmt.Printf("tx - %v\n", tx)
+	fmt.Printf("Topup tx - %v\n", tx)
+
+	for i := 0; ; i++ {
+		i = i % 3
+		time.Sleep(5 * time.Second)
+		ack, err := factom.FactoidACK(tx, "")
+		if err != nil {
+			panic(err)
+		}
+
+		str, err := primitives.EncodeJSONString(ack)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Topup ack - %v", str)
+		for j := 0; j < i+1; j++ {
+			fmt.Printf(".")
+		}
+		fmt.Printf("  \r")
+
+		if ack.Status != "DBlockConfirmed" {
+			continue
+		}
+
+		fmt.Printf("Topup ack - %v\n", str)
+
+		break
+	}
+
+	_, ecBalance, err := CheckFactomBalance()
+	if err != nil {
+		panic(err)
+	}
+	if ecBalance < ECBalanceThreshold {
+		panic("Balance was not increased!")
+	}
 
 	return nil
 }
@@ -541,18 +598,6 @@ func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
 
 
 */
-
-//df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
-func GetBitcoinAnchorChainID() interfaces.IHash {
-	e := CreateFirstBitcoinAnchorEntry()
-	return e.ChainID
-}
-
-//6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
-func GetEthereumAnchorChainID() interfaces.IHash {
-	e := CreateFirstEthereumAnchorEntry()
-	return e.ChainID
-}
 
 func CreateFirstBitcoinAnchorEntry() *entryBlock.Entry {
 	answer := new(entryBlock.Entry)

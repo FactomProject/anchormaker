@@ -1,4 +1,4 @@
-package main
+package setup
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/FactomProject/factom"
 
-	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/config"
 	anchorFactom "github.com/FactomProject/anchormaker/factom"
 
@@ -14,12 +13,8 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
-func main() {
-	//TODO: setup API, etc.
-
-	c := config.ReadConfig()
-	anchorFactom.LoadConfig(c)
-	api.SetServer(c.Factom.FactomdAddress)
+func Setup(c *config.AnchorConfig) {
+	fmt.Printf("Setting the server up...\n")
 
 	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
 	if err != nil {
@@ -48,6 +43,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Setup complete!\n")
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {
