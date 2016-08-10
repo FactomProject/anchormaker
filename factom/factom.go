@@ -1,9 +1,6 @@
 package factom
 
 import (
-	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,7 +8,6 @@ import (
 	"github.com/FactomProject/factom/wallet"
 	"github.com/FactomProject/factom/wallet/wsapi"
 
-	"github.com/FactomProject/anchormaker/anchorLog"
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
@@ -205,7 +201,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
-					ar, valid, err := anchor.UnmarshalAndvalidateAnchorRecord(entry.GetContent(), AnchorSigPublicKey)
+					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKey)
 					if err != nil {
 						panic(err)
 						return 0, err
@@ -405,22 +401,16 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 
 //Construct the entry and submit it to the server
 func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) (string, error) {
-	//Marshal aRecord into json
-	jsonARecord, err := json.Marshal(aRecord)
-	anchorLog.Debug("submitEntryToAnchorChain - jsonARecord: %v", string(jsonARecord))
+	record, sig, err := aRecord.MarshalAndSignV2(ServerPrivKey)
 	if err != nil {
 		return "", err
 	}
-	bufARecord := new(bytes.Buffer)
-	bufARecord.Write(jsonARecord)
-	//Sign the json aRecord with the server key
-	aRecordSig := ServerPrivKey.Sign(jsonARecord)
-	//Encode sig into Hex string
-	bufARecord.Write([]byte(hex.EncodeToString(aRecordSig.Bytes())))
 
 	entry := new(entryBlock.Entry)
 	entry.ChainID = chainID
-	entry.Content = primitives.ByteSlice{Bytes: bufARecord.Bytes()}
+	entry.Content = primitives.ByteSlice{Bytes: record}
+	entry.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: sig}}
+
 	_, txID, err := JustFactomize(entry)
 	if err != nil {
 		return "", err
