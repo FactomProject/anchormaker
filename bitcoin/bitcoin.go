@@ -20,14 +20,12 @@ func LoadConfig(c *config.AnchorConfig) {
 func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	/*
 
-	   // ListSinceBlock returns all transactions added in blocks since the specified
-	   // block hash, or all transactions if it is nil, using the default number of
-	   // minimum confirmations as a filter.
-	   //
-	   // See ListSinceBlockMinConf to override the minimum number of confirmations.
-	   func (c *Client) ListSinceBlock(blockHash *wire.ShaHash) (*btcjson.ListSinceBlockResult, error) {
-	   	return c.ListSinceBlockAsync(blockHash).Receive()
-	   }
+	// ListSinceBlockMinConfAsync returns an instance of a type that can be used to
+	// get the result of the RPC at some future time by invoking the Receive
+	// function on the returned instance.
+	//
+	// See ListSinceBlockMinConf for the blocking version and more details.
+	func (c *Client) ListSinceBlockMinConfAsync(blockHash *wire.ShaHash, minConfirms int) FutureListSinceBlockResult {
 	*/
 	return 0, nil
 }

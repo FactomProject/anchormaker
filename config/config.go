@@ -79,7 +79,7 @@ const defaultConfig = `
 [app]
 HomeDir								= ""
 ; --------------- DBType: LDB | Bolt | Map
-DBType								= "Bolt"
+DBType								= "LDB"
 LdbPath								= "AnchormakerLDB"
 BoltPath							= "AnchormakerBolt.db"
 ServerPrivKey						= ec9f1cefa00406b80d46135a53504f1f4182d4c0f3fed6cca9281bc020eff973

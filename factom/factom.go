@@ -514,7 +514,7 @@ func TopupECAddress() error {
 
 	fmt.Printf("TopupECAddress - %v, %v\n", fAddress, ecAddress)
 
-	tx, err := factom.BuyEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
+	tx, err := factom.BuyExactEC(fAddress, ecAddress, uint64(ECBalanceThreshold))
 	if err != nil {
 		return err
 	}
