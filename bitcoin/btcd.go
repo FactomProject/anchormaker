@@ -13,14 +13,24 @@ import (
 	"github.com/FactomProject/anchormaker/config"
 	//"github.com/FactomProject/anchormaker/database"
 
-	"github.com/btcsuitereleases/btcd/btcjson"
-	//"github.com/btcsuitereleases/btcd/chaincfg"
-	"github.com/btcsuitereleases/btcd/txscript"
-	"github.com/btcsuitereleases/btcd/wire"
-	"github.com/btcsuitereleases/btcrpcclient"
-	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuite/btcd/btcjson"
+	//"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcrpcclient"
+	"github.com/btcsuite/btcutil"
 
-	"github.com/FactomProject/factomd/common/directoryBlock/dbInfo"
+	/*
+		"github.com/btcsuitereleases/btcd/btcjson"
+		//"github.com/btcsuitereleases/btcd/chaincfg"
+		"github.com/btcsuitereleases/btcd/txscript"
+		"github.com/btcsuitereleases/btcd/wire"
+		"github.com/btcsuitereleases/btcrpcclient"
+		"github.com/btcsuitereleases/btcutil"
+	*/
+
+	//"github.com/FactomProject/factomd/common/directoryBlock/dbInfo"
 	"github.com/FactomProject/factomd/common/interfaces"
 	"github.com/FactomProject/factomd/common/primitives"
 )
@@ -124,7 +134,7 @@ func createBtcdNotificationHandlers() btcrpcclient.NotificationHandlers {
 	return ntfnHandlers
 }
 
-func doTransaction(hash interfaces.IHash, blockHeight uint32, dirBlockInfo *dbInfo.DirBlockInfo) (*wire.ShaHash, error) {
+func doTransaction(hash interfaces.IHash, blockHeight uint32 /*, dirBlockInfo *dbInfo.DirBlockInfo*/) (*chainhash.Hash, error) {
 	b := balances[0]
 	balances = balances[1:]
 	anchorLog.Info("new balances.len=", len(balances))
@@ -140,11 +150,13 @@ func doTransaction(hash interfaces.IHash, blockHeight uint32, dirBlockInfo *dbIn
 	}
 	anchorLog.Info("btc.tx.sha=", shaHash.String())
 
-	if dirBlockInfo != nil {
-		dirBlockInfo.BTCTxHash = toHash(shaHash)
-		dirBlockInfo.Timestamp = time.Now().Unix()
-		db.InsertDirBlockInfo(dirBlockInfo)
-	}
+	/*
+		if dirBlockInfo != nil {
+			dirBlockInfo.BTCTxHash = toHash(shaHash)
+			dirBlockInfo.Timestamp = time.Now().Unix()
+			db.InsertDirBlockInfo(dirBlockInfo)
+		}
+	*/
 
 	return shaHash, nil
 }
@@ -157,7 +169,7 @@ func SendRawTransactionToBTC(hash interfaces.IHash, blockHeight uint32) (string,
 	if err != nil {
 		return nil, err
 	}*/
-	h, err := doTransaction(hash, blockHeight, dirBlockInfo)
+	h, err := doTransaction(hash, blockHeight /*, dirBlockInfo*/)
 	if err != nil {
 		return "", err
 	}
@@ -185,7 +197,7 @@ func createRawTransaction(b balance, hash []byte, blockHeight uint32) (*wire.Msg
 func addTxIn(msgtx *wire.MsgTx, b balance) error {
 	output := b.unspentResult
 	//anchorLog.Infof("unspentResult: %s\n", spew.Sdump(output))
-	prevTxHash, err := wire.NewShaHashFromStr(output.TxID)
+	prevTxHash, err := chainhash.NewHashFromStr(output.TxID)
 	if err != nil {
 		return fmt.Errorf("cannot get sha hash from str: %s", err)
 	}
@@ -270,8 +282,8 @@ func validateMsgTx(msgtx *wire.MsgTx, inputs []btcjson.ListUnspentResult) error 
 		if err != nil {
 			return fmt.Errorf("cannot decode scriptPubKey: %s", err)
 		}
-		engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags)
-		//engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags, nil)
+		//engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags)
+		engine, err := txscript.NewEngine(scriptPubKey, msgtx, i, flags, nil)
 		if err != nil {
 			anchorLog.Errorf("cannot create script engine: %s\n", err)
 			return fmt.Errorf("cannot create script engine: %s", err)
@@ -284,7 +296,7 @@ func validateMsgTx(msgtx *wire.MsgTx, inputs []btcjson.ListUnspentResult) error 
 	return nil
 }
 
-func sendRawTransaction(msgtx *wire.MsgTx) (*wire.ShaHash, error) {
+func sendRawTransaction(msgtx *wire.MsgTx) (*chainhash.Hash, error) {
 	anchorLog.Debug("sendRawTransaction: msgTx=%v", msgtx)
 	buf := bytes.Buffer{}
 	buf.Grow(msgtx.SerializeSize())
@@ -302,9 +314,9 @@ func sendRawTransaction(msgtx *wire.MsgTx) (*wire.ShaHash, error) {
 	return shaHash, nil
 }
 
-func toHash(txHash *wire.ShaHash) interfaces.IHash {
+func toHash(txHash *chainhash.Hash) interfaces.IHash {
 	h := new(primitives.Hash)
-	h.SetBytes(txHash.Bytes())
+	h.SetBytes(txHash.CloneBytes())
 	return h
 }
 
@@ -386,7 +398,7 @@ func doSaveDirBlockInfo(transaction *btcutil.Tx, details *btcjson.BlockDetails, 
 	}
 	dirBlockInfo.BTCTxOffset = int32(details.Index)
 	dirBlockInfo.BTCBlockHeight = details.Height
-	btcBlockHash, _ := wire.NewShaHashFromStr(details.Hash)
+	btcBlockHash, _ := chainhash.NewHashFromStr(details.Hash)
 	dirBlockInfo.BTCBlockHash = toHash(btcBlockHash)
 	dirBlockInfo.Timestamp = time.Now().Unix()
 	db.InsertDirBlockInfo(dirBlockInfo)

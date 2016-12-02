@@ -207,8 +207,8 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, err
 					}
 					if valid == false {
-						panic(err)
-						return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
+						continue
+						//return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 
@@ -450,6 +450,7 @@ func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {
 
 	return tx1, tx2, nil
 }
+
 func JustFactomize(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
 	//fmt.Printf("Entry - %v\n", entry)

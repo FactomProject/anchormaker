@@ -6,7 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/FactomProject/anchormaker/api"
-	//"github.com/FactomProject/anchormaker/bitcoin"
+	"github.com/FactomProject/anchormaker/bitcoin"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 	"github.com/FactomProject/anchormaker/ethereum"
@@ -17,7 +17,7 @@ import (
 func main() {
 	c := config.ReadConfig()
 
-	//bitcoin.LoadConfig(c)
+	bitcoin.LoadConfig(c)
 	ethereum.LoadConfig(c)
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
