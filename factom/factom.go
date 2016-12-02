@@ -502,11 +502,13 @@ func TopupECAddress() error {
 	if err != nil {
 		return err
 	}
-	go wsapi.Start(w, fmt.Sprintf(":%d", 8089), config.ReadConfig().Walletd)
+	wsapiIP := fmt.Sprintf("localhost:%d", 8089)
+	go wsapi.Start(w, wsapiIP, config.ReadConfig().Walletd)
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
 		wsapi.Stop()
 	}()
+	factom.SetWalletServer(wsapiIP)
 
 	ecAddress, err := factoid.PublicKeyStringToECAddressString(ServerECKey.PublicKeyString())
 	if err != nil {

@@ -17,9 +17,9 @@ import (
 	"github.com/FactomProject/factomd/common/interfaces"
 )
 
-//var server string = "localhost:8088" //Localhost
+var server string = "localhost:8088" //Localhost
 //var server string = "52.17.183.121:8088" //TestNet
-var server string = "52.18.72.212:8088" //MainNet
+//var server string = "52.18.72.212:8088" //MainNet
 
 func SetServer(serverAddress string) {
 	server = serverAddress
