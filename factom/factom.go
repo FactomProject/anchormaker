@@ -502,7 +502,7 @@ func TopupECAddress() error {
 	if err != nil {
 		return err
 	}
-	go wsapi.Start(w, fmt.Sprintf(":%d", 8089))
+	go wsapi.Start(w, fmt.Sprintf(":%d", 8089), config.ReadConfig().Walletd)
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
 		wsapi.Stop()

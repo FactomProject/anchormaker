@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/FactomProject/factom"
 	"gopkg.in/gcfg.v1"
 )
 
@@ -60,6 +61,7 @@ type AnchorConfig struct {
 		LogPath  string
 		LogLevel string
 	}
+	Walletd factom.RPCConfig
 
 	//	AddPeers     []string `short:"a" long:"addpeer" description:"Add a peer to connect with at startup"`
 	//	ConnectPeers []string `long:"connect" description:"Connect only to the specified peers at startup"`
@@ -93,6 +95,7 @@ ServerECKey							= 2d9afb9b073394863786d660b8960aa827a3d713e0a400e116d373874429
 ; ServerECKey						= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
 AnchorSigPublicKey					= 0426a802617848d4d16d87830fc521f4d136bb2d0c352850919c2679f189613a
 ConfirmationsNeeded					= 20
+
 ; ------------------------------------------------------------------------------
 ; Factom settings
 ; ------------------------------------------------------------------------------
@@ -102,6 +105,7 @@ FactomdAddress						= "qatest.factom.org:8088"
 WalletAddress						= "localhost:8089"
 FactoidBalanceThreshold				= 100
 ECBalanceThreshold					= 10000
+
 ; ------------------------------------------------------------------------------
 ; Bitcoin settings
 ; ------------------------------------------------------------------------------
@@ -117,6 +121,7 @@ CertHomePathBtcd					= "btcd"
 RpcBtcdHost 						= "localhost:18334"
 RpcUser								= "testuser"
 RpcPass								= "SecurePassHere"
+
 ; ------------------------------------------------------------------------------
 ; Ethereum settings
 ; ------------------------------------------------------------------------------
@@ -127,12 +132,37 @@ ContractAddress 					= "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
 GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
 IgnoreWrongEntries					= true
+
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
 ; ------------------------------------------------------------------------------
 [log]
 logLevel 							= debug
 LogPath								= "anchormaker.log"
+
+; ------------------------------------------------------------------------------
+; Configurations for factom-walletd
+; ------------------------------------------------------------------------------
+[Walletd]
+; These are the username and password that factom-walletd requires
+; This file is also used by factom-cli to determine what login to use
+WalletRpcUser                         = ""
+WalletRpcPass                         = ""
+
+; These define if the connection to the wallet should be encrypted, and if it is, what files
+; are the secret key and the public certificate.  factom-cli uses the certificate specified here if TLS is enabled.
+; To use default files and paths leave /full/path/to/... in place.
+WalletTlsEnabled                      = false
+WalletTlsPrivateKey                   = "/full/path/to/walletAPIpriv.key"
+WalletTlsPublicCert                   = "/full/path/to/walletAPIpub.cert"
+
+; This is where factom-walletd and factom-cli will find factomd to interact with the blockchain
+; This value can also be updated to authorize an external ip or domain name when factomd creates a TLS cert
+FactomdLocation                       = "localhost:8088"
+
+; This is where factom-cli will find factom-walletd to create Factoid and Entry Credit transactions
+; This value can also be updated to authorize an external ip or domain name when factom-walletd creates a TLS cert
+WalletdLocation                       = "localhost:8089"
 `
 
 //var acfg *AnchorConfig
