@@ -1,0 +1,131 @@
+install btcd with these instructions.
+These are setup to have btcd on a different server than localhost.  some steps can be skipped if all are local.
+
+https://github.com/btcsuite/btcd#linuxbsdmacosxposix---build-from-source
+
+mkdir ~/.btcd
+cp $GOPATH/src/github.com/btcsuite/btcd/sample-btcd.conf ~/.btcd/btcd.conf
+
+edit ~/.btcd/btcd.conf
+uncomment testnet=1
+uncomment rpclisten=
+set rpcuser=A_Username
+set rpcpass=A_Password
+These should be the same value as on the other system.  save and exit.
+
+
+Update the btcd certs.
+    $ cd ~/.btcd
+    $ gencerts -f --host=<external IP address of server>
+
+This command should now show the IP:
+    $openssl x509 -in rpc.cert -text 
+
+Run btcd
+
+Copy cert file to the machine running the wallet and anchormaker.
+Copy cert file to your local harddrive, from the local machine run:
+scp factom@<btcdremoteserverip>:~/.btcd/rpc.cert .
+
+
+On the anchormaker/btcwallet machine, create a directory 
+mkdir ~/.btcdremote
+On the local machine:
+Copy the new cert to the anchormaker/btcwallet machine from the local machine run:
+scp rpc.cert factom@<anchormakerremoteserverip>:~/.btcdremote/rpc.cert
+
+
+install btcctl (if btcd and btcwallet not on same machine):
+go get -u github.com/Masterminds/glide
+git clone https://github.com/btcsuite/btcd $GOPATH/src/github.com/btcsuite/btcd
+cd $GOPATH/src/github.com/btcsuite/btcd
+glide install
+go install ./cmd/btcctl
+
+
+
+next install btcwallet:
+https://github.com/btcsuite/btcwallet#windowslinuxbsdposix---build-from-source
+
+mkdir ~/.btcwallet
+cp $GOPATH/src/github.com/btcsuite/btcwallet/sample-btcwallet.conf ~/.btcwallet/btcwallet.conf
+
+edit the ~/.btcwallet/btcd.conf file
+uncomment testnet=1
+uncomment and set rpcconnect=<btcdremoteserverip>:18334
+uncomment and set cafile=~/.btcdremote/rpc.cert
+uncomment rpclisten=
+set username=A_Username
+set password=A_Password
+
+on mainnet use 8334 instead
+I believe that anchormaker assumes btcd and btcwallet passwords are the same.
+
+
+run 
+btcwallet --create
+
+save the wallet seed it generates
+c58c4b6a42baeec3a47caa40e02113a699d55cf49e0f9d231f070a12b71558fe
+remember the wallet passphrase too.  example uses asdf
+
+crate or import private key for anchoring.
+https://bitcoinpaperwallet.com/bitcoinpaperwallet/generate-wallet.html?design=alt-testnet
+private: 91jBcYgtSNsJmCvyjAGmSfEdrLPoyqdTmbzZdiruRHk3ReWLw49
+public: mvqBiZK8E24qUACBpmaAQ2K7biSvz6VBHS
+
+make a qr code to ease funding multiple utxos
+bitcoin:mvqBiZK8E24qUACBpmaAQ2K7biSvz6VBHS?amount=0.02
+http://www.qr-code-generator.com/
+send several utxos to the address
+https://www.blocktrail.com/tBTC/address/mvqBiZK8E24qUACBpmaAQ2K7biSvz6VBHS/transactions
+https://test-insight.bitpay.com/address/mvqBiZK8E24qUACBpmaAQ2K7biSvz6VBHS
+https://test-insight.bitpay.com/api/addr/mvqBiZK8E24qUACBpmaAQ2K7biSvz6VBHS/utxo
+
+
+start btcwallet
+in another tab run:
+btcctl --wallet --testnet -u A_Username -P A_Password walletpassphrase asdf 10000
+btcctl --wallet --testnet -u A_Username -P A_Password importprivkey 91jBcYgtSNsJmCvyjAGmSfEdrLPoyqdTmbzZdiruRHk3ReWLw49 imported true
+
+wait for factomd to finish scanning for the new address
+
+wait for a confirmation on the blockchain for the transactions.
+btcctl --wallet --testnet -u A_Username -P A_Password listunspent 0
+btcctl --wallet --testnet -u A_Username -P A_Password listreceivedbyaddress 0
+
+
+
+Install and configure anchormaker:
+cd $GOPATH/src/github.com/FactomProject
+git clone https://github.com/FactomProject/anchormaker.git
+git clone https://github.com/FactomProject/factomizer.git
+go get -v github.com/FactomProject/btcd/
+go get -v github.com/agl/ed25519
+go get -v github.com/davecgh/go-spew/spew
+cd $GOPATH/src/github.com/FactomProject/factom
+git checkout master
+cd $GOPATH/src/github.com/FactomProject/anchormaker
+go install
+
+mkdir ~/.factom
+cp anchormaker.conf ~/.factom/
+
+edit ~/.factom/anchormaker.conf
+change WalletPassphrase, RpcClientUser, RpcClientPass, RpcUser, RpcPass
+set RpcBtcdHost to the btcd server IP
+set CertHomePathBtcd to btcdremote
+
+
+create a chain for the anchor records to go into:
+factom-cli buyec FA3Y1tBWnFpyoZUPr9ZH51R1gSC8r5x5kqvkXL3wy4uRvzFnuWLB EC3hF9LvqFUTKuTEB1E8eKBYxqiTmHXZKhbyfAgvRD1RidwdQdNj 10000
+echo hello | factom-cli addchain -e anchor EC3hF9LvqFUTKuTEB1E8eKBYxqiTmHXZKhbyfAgvRD1RidwdQdNj
+ChainID: d9f1311ec3774da5f66f3dbaa65eb322e96703955fb5feebaeb31bb85a2c91a7
+
+in the anchormaker.conf set AnchorChainID to this chainID
+
+
+https://github.com/FactomProject/anchormaker/blob/master/main.go#L739
+This line is stopping use of the imported address.
+
+
