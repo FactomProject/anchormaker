@@ -10,6 +10,8 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
+var IgnoreWrongEntries bool = true
+
 func LoadConfig(c *config.AnchorConfig) {
 	err := InitRPCClient(c)
 	if err != nil {
@@ -20,14 +22,104 @@ func LoadConfig(c *config.AnchorConfig) {
 func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	/*
 
-	// ListSinceBlockMinConfAsync returns an instance of a type that can be used to
-	// get the result of the RPC at some future time by invoking the Receive
-	// function on the returned instance.
-	//
-	// See ListSinceBlockMinConf for the blocking version and more details.
-	func (c *Client) ListSinceBlockMinConfAsync(blockHash *wire.ShaHash, minConfirms int) FutureListSinceBlockResult {
+		// ListSinceBlockMinConfAsync returns an instance of a type that can be used to
+		// get the result of the RPC at some future time by invoking the Receive
+		// function on the returned instance.
+		//
+		// See ListSinceBlockMinConf for the blocking version and more details.
+		func (c *Client) ListSinceBlockMinConfAsync(blockHash *wire.ShaHash, minConfirms int) FutureListSinceBlockResult {
 	*/
-	return 0, nil
+
+	txCount := 0
+	fmt.Println("SynchronizeBitcoinData")
+	for {
+		ps, err := dbo.FetchProgramState()
+		if err != nil {
+			return 0, err
+		}
+		fmt.Printf("LastBitcoinBlockChecked - %v\n", ps.LastBitcoinBlockChecked)
+
+		txs, err := ListBitcoinTransactionsSinceBlock(ps.LastBitcoinBlockChecked)
+		if err != nil {
+			return 0, err
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+
+		var lastBlock int64 = 0
+
+		fmt.Printf("Bitcoin Tx count - %v\n", len(txs))
+		for _, tx := range txs {
+			txCount++
+			if tx.GetBlockNumber() > lastBlock {
+				lastBlock = tx.GetBlockNumber()
+			}
+			if tx.IsOurs(BTCAddress) == false {
+				fmt.Printf("Not from our address - %v\n", tx)
+				//ignoring transactions that are not ours
+				continue
+			}
+
+			dbHeight, keyMR := tx.GetAnchorData()
+			fmt.Printf("height, key - %v, %v\n", dbHeight, keyMR)
+			if keyMR == "" {
+				//ignoring transactions that don't have data
+				continue
+			}
+
+			ad, err := dbo.FetchAnchorData(dbHeight)
+			if err != nil {
+				return 0, err
+			}
+			if ad == nil {
+				if IgnoreWrongEntries == false {
+					return 0, fmt.Errorf("We have anchored block from outside of our DB")
+				} else {
+					continue
+				}
+			}
+			if ad.DBlockKeyMR != keyMR {
+				fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
+				//return fmt.Errorf("We have anchored invalid KeyMR")
+				continue
+			}
+			if ad.BitcoinRecordHeight > 0 {
+				continue
+			}
+			if ad.Bitcoin.TXID != "" {
+				continue
+			}
+
+			ad.Bitcoin.Address = BTCAddress
+			ad.Bitcoin.TXID = tx.GetHash()
+			ad.Bitcoin.BlockHeight = tx.GetBlockNumber()
+			ad.Bitcoin.BlockHash = tx.GetBlockHash()
+			ad.Bitcoin.Offset = tx.GetTransactionIndex()
+
+			fmt.Printf("Saving anchored - %v, %v\n", ad.DBlockHeight, ad.DBlockKeyMR)
+
+			err = dbo.InsertAnchorData(ad, false)
+			if err != nil {
+				return 0, err
+			}
+		}
+		fmt.Printf("LastBlock - %v\n", lastBlock)
+
+		if len(txs) < 1000 {
+			//we have checked all transactions from the last block, so we can safely step over it
+			ps.LastBitcoinBlockChecked = lastBlock + 1
+		} else {
+			ps.LastBitcoinBlockChecked = lastBlock
+		}
+		err = dbo.InsertProgramState(ps)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return txCount, nil
 }
 
 func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {

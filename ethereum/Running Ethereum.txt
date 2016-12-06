@@ -1,4 +1,10 @@
-Running Ethereum
+Running Ethereum V2
+
+1) Download geth from https://geth.ethereum.org/downloads/
+
+
+
+Running Ethereum V1
 
 1) Download Ethereum wallet from https://github.com/ethereum/mist/releases
 2) Run wallet, skip peer search

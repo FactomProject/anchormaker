@@ -201,7 +201,8 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
-					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKey)
+					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecord(entry.GetContent(), AnchorSigPublicKey)
+					//ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKey)
 					if err != nil {
 						panic(err)
 						return 0, err
@@ -218,16 +219,17 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, err
 					}
 					if anchorData.DBlockKeyMR != ar.KeyMR {
-						panic(err)
+						fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
+						panic(fmt.Sprintf("%v vs %v", anchorData.DBlockKeyMR, ar.KeyMR))
 						return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
 					}
 
 					if ar.Bitcoin != nil {
 						anchorData.Bitcoin.Address = ar.Bitcoin.Address
 						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
-						anchorData.Bitcoin.BlockHeight = ar.Bitcoin.BlockHeight
+						anchorData.Bitcoin.BlockHeight = int64(ar.Bitcoin.BlockHeight)
 						anchorData.Bitcoin.BlockHash = ar.Bitcoin.BlockHash
-						anchorData.Bitcoin.Offset = ar.Bitcoin.Offset
+						anchorData.Bitcoin.Offset = int64(ar.Bitcoin.Offset)
 
 						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
 						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
@@ -264,7 +266,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if anchorData == nil {
 			anchorData := new(database.AnchorData)
 			anchorData.DBlockHeight = dBlock.GetDatabaseHeight()
-			anchorData.DBlockKeyMR = dBlock.GetKeyMR().String()
+			anchorData.DBlockKeyMR = dBlock.DatabasePrimaryIndex().String()
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
 				panic(err)
@@ -327,9 +329,9 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
 				anchorRecord.Bitcoin.TXID = anchorData.Bitcoin.TXID
-				anchorRecord.Bitcoin.BlockHeight = anchorData.Bitcoin.BlockHeight
+				anchorRecord.Bitcoin.BlockHeight = int32(anchorData.Bitcoin.BlockHeight)
 				anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
-				anchorRecord.Bitcoin.Offset = anchorData.Bitcoin.Offset
+				anchorRecord.Bitcoin.Offset = int32(anchorData.Bitcoin.Offset)
 
 				tx, err := CreateAndSendAnchor(anchorRecord)
 				if err != nil {
@@ -527,7 +529,7 @@ func TopupECAddress() error {
 	for i := 0; ; i++ {
 		i = i % 3
 		time.Sleep(5 * time.Second)
-		ack, err := factom.FactoidACK(tx, "")
+		ack, err := factom.FactoidACK(tx.TxID, "")
 		if err != nil {
 			panic(err)
 		}
