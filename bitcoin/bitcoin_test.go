@@ -11,9 +11,6 @@ func TestTest(t *testing.T) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-	for _, v := range tx {
-		a, b := v.GetAnchorData()
-		t.Errorf("%v - %v, %v", v.GetBlockNumber(), a, b)
-	}
+	t.Errorf("%v", tx)
 	t.FailNow()
 }

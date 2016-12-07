@@ -9,48 +9,43 @@ import (
 )
 
 type Transaction struct {
+	InputAddresses []string
+	OPReturn       string
+	TxHash         string
+	BlockNumber    int64
+	BlockHash      string
+	OpReturnIndex  int64
+
 	TX gobcy.TX
 }
 
 func (t *Transaction) IsOurs(ourAddress string) bool {
-	for _, v := range t.TX.Inputs {
-		for _, w := range v.Addresses {
-			if w == BTCAddress {
-				return true
-			}
+	for _, w := range t.InputAddresses {
+		if w == ourAddress {
+			return true
 		}
 	}
 	return false
 }
 
 func (t *Transaction) GetAnchorData() (dBlockHeight uint32, keyMR string) {
-	for _, v := range t.TX.Outputs {
-		if v.DataHex != "" {
-			return opReturnScriptToParts(v.DataHex)
-		}
-	}
-	return 0, ""
+	return opReturnScriptToParts(t.OPReturn)
 }
 
 func (t *Transaction) GetHash() string {
-	return t.TX.Hash
+	return t.TxHash
 }
 
 func (t *Transaction) GetBlockNumber() int64 {
-	return int64(t.TX.BlockHeight)
+	return t.BlockNumber
 }
 
 func (t *Transaction) GetBlockHash() string {
-	return t.TX.BlockHash
+	return t.BlockHash
 }
 
 func (t *Transaction) GetTransactionIndex() int64 {
-	for i, v := range t.TX.Outputs {
-		if v.DataHex != "" {
-			return int64(i)
-		}
-	}
-	return 0
+	return t.OpReturnIndex
 }
 
 func prependBlockHeight(height uint32, hash []byte) ([]byte, error) {
