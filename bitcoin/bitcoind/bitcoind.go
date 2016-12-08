@@ -133,8 +133,6 @@ func BackupWallet(destination []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -145,8 +143,16 @@ func CreateRawTransaction(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
+
+	return resp, err
+}
+
+func DecodeRawTransaction(data string) (*Result, error) {
+	//version 0.7 Produces a human-readable JSON object for a raw transaction.
+	resp, err := CallWithBasicAuth("decoderawtransaction", []interface{}{data})
+	if err != nil {
+		return resp, err
+	}
 
 	return resp, err
 }
@@ -157,8 +163,6 @@ func EncryptWallet(passphrase []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -169,8 +173,6 @@ func GetAccount(bitcoinaddress []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -181,8 +183,6 @@ func GetAccountAddress(account []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -192,8 +192,6 @@ func GetAddressesByAccount(account []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -205,8 +203,6 @@ func GetBalance(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -217,8 +213,6 @@ func GetBalance(data []interface{}) (*Result, error) {
 	if err!=nil{
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }*/
@@ -229,8 +223,6 @@ func GetBlockCount() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -250,8 +242,6 @@ func GetBlockNumber() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -261,8 +251,6 @@ func GetConnectionCount() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -272,8 +260,6 @@ func GetDifficulty() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -283,8 +269,6 @@ func GetGenerate() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -294,8 +278,6 @@ func GetHashesPerSec() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -313,8 +295,6 @@ func GetMemoryPool(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -344,10 +324,8 @@ func GetInfo() (*GetInfoResult, *Result, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 	if resp.Error != nil {
-		return nil, nil, err
+		return nil, resp, err
 	}
 	answer := new(GetInfoResult)
 	err = resp.ParseResult(answer)
@@ -364,10 +342,89 @@ func GetNewAddress(account []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
+}
+
+func GetRawTransaction(txid string) (string, *Result, error) {
+	//version 0.7 Returns raw transaction representation for given transaction id.
+	resp, err := CallWithBasicAuth("getrawtransaction", []interface{}{txid})
+	if err != nil {
+		return "", resp, err
+	}
+	if resp.Error != nil {
+		return "", resp, err
+	}
+	answer := ""
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return answer, resp, err
+}
+
+type ScriptSig struct {
+	ASM string `json:"asm"`
+	Hex string `json:"hex"`
+}
+
+type VIn struct {
+	TxID      string    `json:"txid"`
+	VOut      int64     `json:"vout"`
+	ScriptSig ScriptSig `json:"scriptSig"`
+	Sequence  int64     `json:"sequence"`
+}
+
+type ScriptPubKey struct {
+	ASM       string   `json:"asm"`
+	Hex       string   `json:"hex"`
+	ReqSigs   int64    `json:"reqSigs"`
+	Type      string   `json:"type"`
+	Addresses []string `json:"addresses"`
+}
+
+type VOut struct {
+	Value        float64      `json:"value"`
+	N            int64        `json:"n"`
+	ScriptPubKey ScriptPubKey `json:"scriptPubKey"`
+}
+
+type DetailedTransaction struct {
+	Hex           string `json:"hex"`
+	TxID          string `json:"txid"`
+	Hash          string `json:"hash"`
+	Size          int64  `json:"size"`
+	VSize         int64  `json:"vsize"`
+	Version       int64  `json:"version"`
+	LockTime      int64  `json:"locktime"`
+	VIn           []VIn  `json:"vin"`
+	VOut          []VOut `json:"vout"`
+	Blockhash     string `json:"blockhash"`
+	Confirmations int64  `json:"confirmations"`
+	Time          int64  `json:"time"`
+	Blocktime     int64  `json:"blocktime"`
+}
+
+func GetRawTransactionWithVerbose(txid string) (*DetailedTransaction, *Result, error) {
+	//version 0.7 Returns raw transaction representation for given transaction id.
+	resp, err := CallWithBasicAuth("getrawtransaction", []interface{}{txid, 1})
+	if err != nil {
+		panic(err)
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		panic(err)
+		return nil, resp, err
+	}
+	answer := new(DetailedTransaction)
+	err = resp.ParseResult(answer)
+	if err != nil {
+		panic(err)
+		return nil, nil, err
+	}
+
+	return answer, resp, err
 }
 
 func GetReceivedByAccount(data []interface{}) (*Result, error) {
@@ -376,8 +433,6 @@ func GetReceivedByAccount(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -388,8 +443,6 @@ func GetReceivedByAddress(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -403,7 +456,7 @@ func GetBlock(txid []interface{}) (*Result, error) {
 	return resp, err
 }
 
-func GetTransaction(txid []interface{}) (*Result, error) {
+func GetTransaction(txid string) (*Result, error) {
 	//Returns an object about the given transaction containing:
 	//"amount" : total amount of the transaction
 	//"confirmations" : number of confirmations of the transaction
@@ -414,21 +467,11 @@ func GetTransaction(txid []interface{}) (*Result, error) {
 	//"address"
 	//"category"
 	//"amount"
-	resp, err := CallWithBasicAuth("gettransaction", txid)
+	resp, err := CallWithBasicAuth("gettransaction", []interface{}{txid})
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
-	return resp, err
-}
-
-func GetRawTransaction(txid string) (*Result, error) {
-	resp, err := CallWithBasicAuth("getrawtransaction", []interface{}{txid})
-	if err != nil {
-		return resp, err
-	}
 	return resp, err
 }
 
@@ -455,8 +498,6 @@ func Help(command string) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -467,8 +508,6 @@ func KeyPoolRefill() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -479,8 +518,6 @@ func ListAccounts(minconf interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -491,8 +528,6 @@ func ListSinceBlock(blockid, targetconfirmations interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -506,8 +541,6 @@ func ListReceivedByAccount(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -523,8 +556,6 @@ func ListReceivedByAddress(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -555,8 +586,6 @@ func ListTransactions(data []interface{}) ([]Transaction, *Result, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 	if resp.Error != nil {
 		return nil, nil, err
 	}
@@ -575,8 +604,6 @@ func ListUnspent(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -587,8 +614,6 @@ func Move(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -599,8 +624,6 @@ func SendFrom(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -611,8 +634,6 @@ func SendMany(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -623,8 +644,6 @@ func SendToAddress(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -635,8 +654,6 @@ func SetAccount(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -648,8 +665,6 @@ func SetGenerate(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -660,8 +675,6 @@ func SetTxFee(amount []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -672,8 +685,6 @@ func SignMessage(bitcoinaddress, message interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -683,8 +694,6 @@ func Stop() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -695,8 +704,6 @@ func ValidateAddress(bitcoinaddress interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -707,8 +714,6 @@ func VerifyMessage(bitcoinaddress, signature, message interface{}) (*Result, err
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -719,8 +724,6 @@ func WalletLock() (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -731,8 +734,6 @@ func WalletPassPhrase(passphrase, timeout interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
@@ -743,8 +744,6 @@ func WalletPassPhraseChange(data []interface{}) (*Result, error) {
 	if err != nil {
 		return resp, err
 	}
-	//result:=resp["result"]
-	//c.Infof(result)
 
 	return resp, err
 }
