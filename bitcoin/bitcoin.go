@@ -39,7 +39,7 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		fmt.Printf("LastBitcoinBlockChecked - %v\n", ps.LastBitcoinBlockChecked)
 
-		txs, err := ListBitcoinTransactionsSinceBlock(ps.LastBitcoinBlockChecked)
+		txs, newBlock, err := ListBitcoinTransactionsSinceBlock(ps.LastBitcoinBlockChecked)
 		if err != nil {
 			return 0, err
 		}
@@ -48,14 +48,9 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			break
 		}
 
-		var lastBlock int64 = 0
-
 		fmt.Printf("Bitcoin Tx count - %v\n", len(txs))
 		for _, tx := range txs {
 			txCount++
-			if tx.GetBlockNumber() > lastBlock {
-				lastBlock = tx.GetBlockNumber()
-			}
 			if tx.IsOurs(BTCAddress) == false {
 				fmt.Printf("Not from our address - %v\n", tx)
 				//ignoring transactions that are not ours
@@ -105,14 +100,10 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 				return 0, err
 			}
 		}
-		fmt.Printf("LastBlock - %v\n", lastBlock)
+		fmt.Printf("LastBlock - %v\n", newBlock)
 
-		if len(txs) < 1000 {
-			//we have checked all transactions from the last block, so we can safely step over it
-			ps.LastBitcoinBlockChecked = lastBlock + 1
-		} else {
-			ps.LastBitcoinBlockChecked = lastBlock
-		}
+		ps.LastBitcoinBlockChecked = newBlock
+
 		err = dbo.InsertProgramState(ps)
 		if err != nil {
 			return 0, err

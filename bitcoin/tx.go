@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
-
-	"github.com/blockcypher/gobcy"
 )
 
 type Transaction struct {
@@ -15,8 +13,6 @@ type Transaction struct {
 	BlockNumber    int64
 	BlockHash      string
 	OpReturnIndex  int64
-
-	TX gobcy.TX
 }
 
 func (t *Transaction) IsOurs(ourAddress string) bool {

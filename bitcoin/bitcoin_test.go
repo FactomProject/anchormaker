@@ -7,10 +7,11 @@ import (
 )
 
 func TestTest(t *testing.T) {
-	tx, err := ListBitcoinTransactionsSinceBlock(0)
+	tx, err := ListBitcoinTransactionsSinceBlock("00000000ac859aa8572cb4ade286e081f6d0ec662a1043693be637e4aeae6b4f")
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 	t.Errorf("%v", tx)
+
 	t.FailNow()
 }

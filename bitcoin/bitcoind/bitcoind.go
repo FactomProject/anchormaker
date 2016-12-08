@@ -217,6 +217,45 @@ func GetBalance(data []interface{}) (*Result, error) {
 	return resp, err
 }*/
 
+type Block struct {
+	Hash              string   `json:"hash"`
+	Confirmations     int64    `json:"confirmations"`
+	StrippedSize      int64    `json:"strippedsize"`
+	Size              int64    `json:"size"`
+	Weight            int64    `json:"weight"`
+	Height            int64    `json:"height"`
+	Version           int64    `json:"version"`
+	VersionHex        string   `json:"versionHex"`
+	MerkleRoot        string   `json:"merkleroot"`
+	Tx                []string `json:"tx"`
+	Time              int64    `json:"time"`
+	MedianTime        int64    `json:"mediantime"`
+	Nonce             int64    `json:"nonce"`
+	Bits              string   `json:"bits"`
+	difficulty        float64  `json:"difficulty"`
+	ChainWork         string   `json:"chainwork"`
+	PreviousBlockHash string   `json:"previousblockhash"`
+	NextBlockHash     string   `json:"nextblockhash"`
+}
+
+func GetBlock(hash string) (*Block, *Result, error) {
+	//Returns the number of blocks in the longest block chain.
+	resp, err := CallWithBasicAuth("getblock", []interface{}{hash})
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, resp, err
+	}
+	answer := new(Block)
+	err = resp.ParseResult(answer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return answer, resp, err
+}
+
 func GetBlockCount() (*Result, error) {
 	//Returns the number of blocks in the longest block chain.
 	resp, err := CallWithBasicAuth("getblockcount", nil)
@@ -400,7 +439,7 @@ type DetailedTransaction struct {
 	LockTime      int64  `json:"locktime"`
 	VIn           []VIn  `json:"vin"`
 	VOut          []VOut `json:"vout"`
-	Blockhash     string `json:"blockhash"`
+	BlockHash     string `json:"blockhash"`
 	Confirmations int64  `json:"confirmations"`
 	Time          int64  `json:"time"`
 	Blocktime     int64  `json:"blocktime"`
@@ -444,15 +483,6 @@ func GetReceivedByAddress(data []interface{}) (*Result, error) {
 		return resp, err
 	}
 
-	return resp, err
-}
-
-func GetBlock(txid []interface{}) (*Result, error) {
-	//Returns information about the block with the given hash.
-	resp, err := CallWithBasicAuth("getblock", txid)
-	if err != nil {
-		return resp, err
-	}
 	return resp, err
 }
 
@@ -522,14 +552,27 @@ func ListAccounts(minconf interface{}) (*Result, error) {
 	return resp, err
 }
 
-func ListSinceBlock(blockid, targetconfirmations interface{}) (*Result, error) {
+type ListSinceBlockResponse struct {
+	Transactions []Transaction `json:"transactions"`
+	LastBlock    string        `json:"lastblock"`
+}
+
+func ListSinceBlock(blockHash string, targetConfirmations int64) (*ListSinceBlockResponse, *Result, error) {
 	//Get all transactions in blocks since block [blockid], or all transactions if omitted.
-	resp, err := CallWithBasicAuth("listsinceblock", []interface{}{blockid, targetconfirmations})
+	resp, err := CallWithBasicAuth("listsinceblock", []interface{}{blockHash, targetConfirmations})
 	if err != nil {
-		return resp, err
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, nil, err
+	}
+	answer := new(ListSinceBlockResponse)
+	err = resp.ParseResult(answer)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return resp, err
+	return answer, resp, err
 }
 
 func ListReceivedByAccount(data []interface{}) (*Result, error) {
@@ -572,7 +615,7 @@ type Transaction struct {
 	Blockhash         string        `json:"blockhash"`
 	Blockindex        int64         `json:"blockindex"`
 	Blocktime         int64         `json:"blocktime"`
-	Txid              string        `json:"txid"`
+	TxID              string        `json:"txid"`
 	Walletconflicts   []interface{} `json:"walletconflicts"`
 	Time              int64         `json:"time"`
 	Timereceived      int64         `json:"timereceived"`
@@ -583,6 +626,24 @@ type Transaction struct {
 func ListTransactions(data []interface{}) ([]Transaction, *Result, error) {
 	//Returns up to [count] most recent transactions skipping the first [from] transactions for account [account]. If [account] not provided will return recent transaction from all accounts.
 	resp, err := CallWithBasicAuth("listtransactions", data)
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, nil, err
+	}
+	answer := []Transaction{}
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return answer, resp, err
+}
+
+func ListTransactionsFull(account string, count int64, from int64) ([]Transaction, *Result, error) {
+	//Returns up to [count] most recent transactions skipping the first [from] transactions for account [account]. If [account] not provided will return recent transaction from all accounts.
+	resp, err := CallWithBasicAuth("listtransactions", []interface{}{account, count, from})
 	if err != nil {
 		return nil, nil, err
 	}
