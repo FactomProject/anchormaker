@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/FactomProject/anchormaker/api"
 	"github.com/FactomProject/anchormaker/bitcoin"
@@ -68,6 +69,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
@@ -136,13 +138,13 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 		err = ethereum.AnchorBlocksIntoEthereum(dbo)
 		if err != nil {
 			return err
-		}
+		}*/
 
-		err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
-		if err != nil {
-			return err
-		}
-
+	err := bitcoin.AnchorBlocksIntoBitcoin(dbo)
+	if err != nil {
+		return err
+	}
+	/*
 		err = factom.SaveAnchorsIntoFactom(dbo)
 		if err != nil {
 			return err

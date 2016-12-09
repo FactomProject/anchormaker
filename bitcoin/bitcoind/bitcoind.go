@@ -3,7 +3,7 @@ package bitcoind
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
+	//"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -29,7 +29,7 @@ func GetID() int64 {
 
 type Result struct {
 	Result json.RawMessage `json:"result"`
-	Error  interface{}     `json:"error"`
+	Error  *Error          `json:"error,omitempty"`
 	ID     interface{}     `json:"id"`
 }
 
@@ -42,8 +42,18 @@ func (r *Result) ParseResult(dst interface{}) error {
 	return json.Unmarshal(r.Result, dst)
 }
 
+type Error struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+}
+
+func (r *Error) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
+}
+
 func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
-	fmt.Printf("CallWithBasicAuthSingleParam\n")
+	//fmt.Printf("CallWithBasicAuthSingleParam\n")
 	data, err := json.Marshal(map[string]interface{}{
 		"method": method,
 		"id":     GetID(),
@@ -84,7 +94,7 @@ func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
 }
 
 func CallWithBasicAuthSingleParam(method string, params interface{}) (*Result, error) {
-	fmt.Printf("CallWithBasicAuthSingleParam\n")
+	//fmt.Printf("CallWithBasicAuthSingleParam\n")
 	data, err := json.Marshal(map[string]interface{}{
 		"method": method,
 		"id":     GetID(),
@@ -251,6 +261,11 @@ type Block struct {
 	NextBlockHash     string   `json:"nextblockhash"`
 }
 
+func (r *Block) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
+}
+
 func GetBlock(hash string) (*Block, *Result, error) {
 	//Returns the number of blocks in the longest block chain.
 	resp, err := CallWithBasicAuth("getblock", []interface{}{hash})
@@ -370,6 +385,11 @@ type GetInfoResult struct {
 	Errors          string  `json:"errors"`
 }
 
+func (r *GetInfoResult) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
+}
+
 func GetInfo() (*GetInfoResult, *Result, error) {
 	//Returns an object containing various state info.
 	resp, err := CallWithBasicAuth("getinfo", nil)
@@ -458,6 +478,11 @@ type DetailedTransaction struct {
 	Blocktime     int64  `json:"blocktime"`
 }
 
+func (r *DetailedTransaction) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
+}
+
 func GetRawTransactionWithVerbose(txid string) (*DetailedTransaction, *Result, error) {
 	//version 0.7 Returns raw transaction representation for given transaction id.
 	resp, err := CallWithBasicAuth("getrawtransaction", []interface{}{txid, 1})
@@ -466,13 +491,11 @@ func GetRawTransactionWithVerbose(txid string) (*DetailedTransaction, *Result, e
 		return nil, nil, err
 	}
 	if resp.Error != nil {
-		panic(err)
 		return nil, resp, err
 	}
 	answer := new(DetailedTransaction)
 	err = resp.ParseResult(answer)
 	if err != nil {
-		panic(err)
 		return nil, nil, err
 	}
 
@@ -625,15 +648,20 @@ type Transaction struct {
 	Vout              int64         `json:"vout"`
 	Fee               float64       `json:"fee"`
 	Confirmations     int64         `json:"confirmations"`
-	Blockhash         string        `json:"blockhash"`
-	Blockindex        int64         `json:"blockindex"`
-	Blocktime         int64         `json:"blocktime"`
+	BlockHash         string        `json:"blockhash"`
+	BlockIndex        int64         `json:"blockindex"`
+	BlockTime         int64         `json:"blocktime"`
 	TxID              string        `json:"txid"`
 	Walletconflicts   []interface{} `json:"walletconflicts"`
 	Time              int64         `json:"time"`
 	Timereceived      int64         `json:"timereceived"`
 	BIP125Replaceable string        `json:"bip125-replaceable"`
 	Abandoned         bool          `json:"abandoned"`
+}
+
+func (r *Transaction) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
 }
 
 func ListTransactions(data []interface{}) ([]Transaction, *Result, error) {
@@ -759,14 +787,22 @@ func SendRawTransaction(tx string) (string, *Result, error) {
 	return answer, resp, err
 }
 
-func SendToAddress(data []interface{}) (*Result, error) {
+func SendToAddress(address string, amount float64) (string, *Result, error) {
 	//<amount> is a real and is rounded to 8 decimal places. Returns the transaction ID <txid> if successful.
-	resp, err := CallWithBasicAuth("sendtoaddress", data)
+	resp, err := CallWithBasicAuth("sendtoaddress", []interface{}{address, amount})
 	if err != nil {
-		return resp, err
+		return "", resp, err
+	}
+	if resp.Error != nil {
+		return "", resp, err
+	}
+	answer := ""
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return "", nil, err
 	}
 
-	return resp, err
+	return answer, resp, err
 }
 
 func SetAccount(data []interface{}) (*Result, error) {

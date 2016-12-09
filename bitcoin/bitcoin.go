@@ -140,7 +140,7 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 			continue
 		}
 
-		//fmt.Printf("Anchoring %v\n", height)
+		fmt.Printf("Anchoring %v\n", height)
 		time.Sleep(5 * time.Second)
 		h, err := primitives.NewShaHashFromStr(ad.DBlockKeyMR)
 		if err != nil {

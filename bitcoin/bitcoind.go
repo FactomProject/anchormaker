@@ -28,6 +28,7 @@ func InitRPCClient(cfg *config.AnchorConfig) error {
 // SendRawTransactionToBTC is the main function used to anchor factom
 // dir block hash to bitcoin blockchain
 func SendRawTransactionToBTC(hash string, blockHeight uint32) (string, error) {
+	fmt.Printf("SendRawTransactionToBTC - %v, %v\n", blockHeight, hash)
 	b, err := hex.DecodeString(hash)
 	if err != nil {
 		return "", err
@@ -109,6 +110,7 @@ func GetOurUnspentOutputs(address string) ([]bitcoind.UnspentOutput, error) {
 }
 
 func ListBitcoinTransactionsSinceBlock(block string) ([]Transaction, string, error) {
+	fmt.Printf("ListBitcoinTransactionsSinceBlock\n")
 	txs, resp, err := bitcoind.ListSinceBlock(block, 6)
 	if err != nil {
 		return nil, "", err
@@ -131,12 +133,18 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 			//Ignore transactions that we don't send ourselves
 			continue
 		}
+		if v.BlockHash == "" {
+			//Ignore unconfirmed transactions
+			continue
+		}
 
 		fullTx, r, err := bitcoind.GetRawTransactionWithVerbose(v.TxID)
 		if err != nil {
+			fmt.Printf("Error for Tx - %v\n", v.String())
 			return nil, err
 		}
 		if r.Error != nil {
+			fmt.Printf("Error for Tx - %v\n", v.String())
 			return nil, fmt.Errorf("%v", r.Error)
 		}
 		var tx Transaction
