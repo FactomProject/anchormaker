@@ -79,7 +79,7 @@ func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%v\n", result)
+	//fmt.Printf("%v\n", result)
 	return result, nil
 }
 
@@ -119,7 +119,7 @@ func CallWithBasicAuthSingleParam(method string, params interface{}) (*Result, e
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%v\n", result)
+	//fmt.Printf("%v\n", result)
 	return result, nil
 }
 
@@ -137,14 +137,27 @@ func BackupWallet(destination []interface{}) (*Result, error) {
 	return resp, err
 }
 
-func CreateRawTransaction(data []interface{}) (*Result, error) {
+type RawTransactionInput struct {
+	TxID string `json:"txid"`
+	VOut int64  `json:"vout"`
+}
+
+func CreateRawTransaction(inputs []RawTransactionInput, outputs map[string]interface{}) (string, *Result, error) {
 	//version 0.7 Creates a raw transaction spending given inputs.
-	resp, err := CallWithBasicAuth("createrawtransaction", data)
+	resp, err := CallWithBasicAuth("createrawtransaction", []interface{}{inputs, outputs})
 	if err != nil {
-		return resp, err
+		return "", resp, err
+	}
+	if resp.Error != nil {
+		return "", resp, err
+	}
+	answer := ""
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return "", nil, err
 	}
 
-	return resp, err
+	return answer, resp, err
 }
 
 func DecodeRawTransaction(data string) (*Result, error) {
@@ -659,14 +672,43 @@ func ListTransactionsFull(account string, count int64, from int64) ([]Transactio
 	return answer, resp, err
 }
 
-func ListUnspent(data []interface{}) (*Result, error) {
+type UnspentOutput struct {
+	TXId          string  `json:"txid"`
+	VOut          int64   `json:"vout"`
+	Address       string  `json:"address"`
+	ScriptPubKey  string  `json:"scriptPubKey"`
+	Amount        float64 `json:"amount"`
+	Confirmations int64   `json:"confirmations"`
+	Spendable     bool    `json:"spendable"`
+	Solvable      bool    `json:"solvable"`
+}
+
+func ListUnspent() ([]UnspentOutput, *Result, error) {
 	//Returns up to [count] most recent transactions skipping the first [from] transactions for account [account]. If [account] not provided will return recent transaction from all accounts.
-	resp, err := CallWithBasicAuth("listunspent", data)
+	return ListUnspentFull(1, 999999)
+}
+
+func ListUnspentMinConf(minConf int64) ([]UnspentOutput, *Result, error) {
+	//Returns up to [count] most recent transactions skipping the first [from] transactions for account [account]. If [account] not provided will return recent transaction from all accounts.
+	return ListUnspentFull(minConf, 999999)
+}
+
+func ListUnspentFull(minConf, maxConf int64) ([]UnspentOutput, *Result, error) {
+	//Returns up to [count] most recent transactions skipping the first [from] transactions for account [account]. If [account] not provided will return recent transaction from all accounts.
+	resp, err := CallWithBasicAuth("listunspent", []interface{}{minConf, maxConf})
 	if err != nil {
-		return resp, err
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, nil, err
+	}
+	answer := []UnspentOutput{}
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return resp, err
+	return answer, resp, err
 }
 
 func Move(data []interface{}) (*Result, error) {
@@ -697,6 +739,24 @@ func SendMany(data []interface{}) (*Result, error) {
 	}
 
 	return resp, err
+}
+
+func SendRawTransaction(tx string) (string, *Result, error) {
+	//amounts are double-precision floating point numbers
+	resp, err := CallWithBasicAuth("sendrawtransaction", []interface{}{tx})
+	if err != nil {
+		return "", resp, err
+	}
+	if resp.Error != nil {
+		return "", resp, err
+	}
+	answer := ""
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return answer, resp, err
 }
 
 func SendToAddress(data []interface{}) (*Result, error) {
@@ -749,6 +809,40 @@ func SignMessage(bitcoinaddress, message interface{}) (*Result, error) {
 
 	return resp, err
 }
+
+type SignRawTransactionResp struct {
+	Hex      string `json:"hex"`
+	Complete bool   `json:"complete"`
+}
+
+func SignRawTransaction(raw string) (*SignRawTransactionResp, *Result, error) {
+	//version 0.7 Adds signatures to a raw transaction and returns the resulting raw transaction.
+	resp, err := CallWithBasicAuth("signrawtransaction", []interface{}{raw})
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, nil, err
+	}
+	answer := new(SignRawTransactionResp)
+	err = resp.ParseResult(answer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return answer, resp, err
+}
+
+func SignRawMessage(raw string) (*Result, error) {
+	//Sign a message with the private key of an address.
+	resp, err := CallWithBasicAuth("signmessage", []interface{}{raw})
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, err
+}
+
 func Stop() (*Result, error) {
 	//Stop bitcoin server.
 	resp, err := CallWithBasicAuth("stop", nil)

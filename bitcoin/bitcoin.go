@@ -147,7 +147,7 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 			return err
 		}
 
-		tx, err := SendRawTransactionToBTC(h, ad.DBlockHeight)
+		tx, err := SendRawTransactionToBTC(h.String(), ad.DBlockHeight)
 		if err != nil {
 			return err
 		}
