@@ -151,7 +151,12 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Anchored %v\n", height)
+		if tx == "" {
+			//No error, but couldn't anchor, will try later.
+			return nil
+		}
+
+		fmt.Printf("Anchored %v\n\n", height)
 
 		ad.Bitcoin.TXID = tx
 		err = dbo.InsertAnchorData(ad, false)

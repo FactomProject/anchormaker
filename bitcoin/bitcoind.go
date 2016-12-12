@@ -57,7 +57,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 		}
 	}
 	if totalInputs < BTCFee {
-		return "", fmt.Errorf("Not enough money to cover fees")
+		return "", nil //fmt.Errorf("Not enough money to cover fees")
 	}
 
 	outputs := map[string]interface{}{}
