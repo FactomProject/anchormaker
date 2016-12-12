@@ -16,6 +16,7 @@ import (
 var BTCAddress = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
 var BTCPrivKey = "cRhC7gEZMJdZ35SrBbcRX19R1sM3f5F1tHsmjPvsbfLSds81FxQp"
 var BTCFee float64 = 0.001
+var MinConfirmations int64 = 1
 
 func init() {
 	bitcoind.SetAddress("http://localhost:18332/", "user", "pass")
@@ -37,7 +38,7 @@ func SendRawTransactionToBTC(hash string, blockHeight uint32) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	list, err := GetOurUnspentOutputs(BTCAddress)
+	list, err := GetSpendableOutputs(BTCAddress)
 	if err != nil {
 		return "", err
 	}
@@ -109,9 +110,23 @@ func GetOurUnspentOutputs(address string) ([]bitcoind.UnspentOutput, error) {
 	return list, nil
 }
 
+func GetSpendableOutputs(address string) ([]bitcoind.UnspentOutput, error) {
+	list, resp, err := bitcoind.ListUnspent()
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != nil {
+		return nil, fmt.Errorf("%v", resp.Error)
+	}
+	if len(list) == 0 {
+		return nil, nil
+	}
+	return list, nil
+}
+
 func ListBitcoinTransactionsSinceBlock(block string) ([]Transaction, string, error) {
 	fmt.Printf("ListBitcoinTransactionsSinceBlock\n")
-	txs, resp, err := bitcoind.ListSinceBlock(block, 6)
+	txs, resp, err := bitcoind.ListSinceBlock(block, MinConfirmations)
 	if err != nil {
 		return nil, "", err
 	}
@@ -135,6 +150,10 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 		}
 		if v.BlockHash == "" {
 			//Ignore unconfirmed transactions
+			continue
+		}
+		if v.Address == "" {
+			//Ignore transactions that are just OP_returns
 			continue
 		}
 

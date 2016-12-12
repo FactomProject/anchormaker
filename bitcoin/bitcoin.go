@@ -52,7 +52,7 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		for _, tx := range txs {
 			txCount++
 			if tx.IsOurs(BTCAddress) == false {
-				fmt.Printf("Not from our address - %v\n", tx)
+				fmt.Printf("Not from our address - %v\n", tx.String())
 				//ignoring transactions that are not ours
 				continue
 			}
@@ -136,7 +136,7 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 		if ad.Bitcoin.TXID != "" {
-			height = ad.DBlockHeight + 1
+			height++
 			continue
 		}
 
@@ -158,7 +158,7 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 		if err != nil {
 			return err
 		}
-		height = ad.DBlockHeight + 1
+		height++
 	}
 
 	return nil

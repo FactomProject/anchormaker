@@ -2,6 +2,7 @@ package bitcoin
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -13,6 +14,11 @@ type Transaction struct {
 	BlockNumber    int64
 	BlockHash      string
 	OpReturnIndex  int64
+}
+
+func (r *Transaction) String() string {
+	s, _ := json.MarshalIndent(r, "", "\t")
+	return string(s)
 }
 
 func (t *Transaction) IsOurs(ourAddress string) bool {
@@ -61,13 +67,13 @@ func prependBlockHeight(height uint32, hash []byte) ([]byte, error) {
 
 func opReturnScriptToParts(script string) (dBlockHeight uint32, keyMR string) {
 	//466100000001031c8c948a27d82fbc2e30383f62a3bb499997c36eed9999252908ed6a865bd746aa
-	if len(script) != 80 {
+	if len(script) != 84 {
 		return 0, ""
 	}
-	if script[:4] != "4661" {
+	if script[:8] != "6a284661" {
 		return 0, ""
 	}
-	script = script[4:]
+	script = script[8:]
 	i, err := strconv.ParseInt(script[:12], 16, 64)
 	if err != nil {
 		return 0, ""
