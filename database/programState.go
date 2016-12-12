@@ -14,7 +14,6 @@ var ProgramStateStr []byte = []byte("ProgramState")
 type ProgramStateBase struct {
 	LastBitcoinBlockChecked       string
 	LastEthereumBlockChecked      int64
-	LastFactomDBlockChecked       string
 	LastFactomDBlockHeightChecked uint32
 }
 

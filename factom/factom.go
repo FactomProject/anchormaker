@@ -92,74 +92,40 @@ func CheckFactomBalance() (int64, int64, error) {
 //Returns number of blocks synchronized
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	blockCount := 0
-	anchorData, err := dbo.FetchAnchorDataHead()
-	if err != nil {
-		panic(err)
-		return 0, err
-	}
-	startHeight := 0
-	endKeyMR := "0000000000000000000000000000000000000000000000000000000000000000"
-	if anchorData != nil {
-		endKeyMR = anchorData.DBlockKeyMR
-		startHeight = int(anchorData.DBlockHeight)
-	}
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		panic(err)
 		return 0, err
 	}
-	if ps.LastFactomDBlockChecked != "" {
-		endKeyMR = ps.LastFactomDBlockChecked
+	nextHeight := ps.LastFactomDBlockHeightChecked
+	if nextHeight > 0 {
+		//If it's 0, we don't know if we have ANY blocks. If it's more than 0, we know we have that block, so we skip it
+		nextHeight++
 	}
 
-	dBlockHead, err := api.GetDBlockHead()
-	if err != nil {
-		panic(err)
-		return 0, err
-	}
-
-	//already fully synchronized
-	if endKeyMR == dBlockHead {
-		return 0, nil
-	}
-
-	dBlock, err := api.GetDBlock(dBlockHead)
-	if err != nil {
-		panic(err)
-		return 0, err
-	}
-	fmt.Printf("dBlock - %v\n", dBlock)
-	currentHeadHeight := dBlock.GetDatabaseHeight()
-
-	dBlockList := make([]interfaces.IDirectoryBlock, int(dBlock.GetDatabaseHeight())+1)
-	dBlockList[int(dBlock.GetDatabaseHeight())] = dBlock
+	dBlockList := []interfaces.IDirectoryBlock{}
 
 	for {
-		keymr := dBlock.GetHeader().GetPrevKeyMR().String()
-		if keymr == endKeyMR {
-			startHeight = int(dBlock.GetDatabaseHeight())
-			break
-		}
-		if keymr == "0000000000000000000000000000000000000000000000000000000000000000" {
-			startHeight = int(dBlock.GetDatabaseHeight())
-			break
-		}
-		dBlock, err = api.GetDBlock(keymr)
+		dBlock, err := api.GetDBlockByHeight(nextHeight)
 		if err != nil {
 			panic(err)
 			return 0, err
 		}
 		if dBlock == nil {
-			panic(err)
-			return 0, fmt.Errorf("dblock " + keymr + " not found")
+			break
 		}
 
-		dBlockList[int(dBlock.GetDatabaseHeight())] = dBlock
+		dBlockList = append(dBlockList, dBlock)
 		fmt.Printf("Fetched dblock %v\n", dBlock.GetDatabaseHeight())
+		nextHeight = dBlock.GetDatabaseHeight() + 1
 	}
 
-	for i := startHeight; i < len(dBlockList); i++ {
-		dBlock = dBlockList[i]
+	if len(dBlockList) == 0 {
+		return 0, nil
+	}
+	var currentHeadHeight uint32 = 0
+
+	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
 			//Looking for Bitcoin and Ethereum anchors
 
@@ -213,7 +179,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 
-					anchorData, err = dbo.FetchAnchorData(ar.DBHeight)
+					anchorData, err := dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
 						panic(err)
 						return 0, err
@@ -258,7 +224,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 
 		//Updating new directory blocks
-		anchorData, err = dbo.FetchAnchorData(uint32(i))
+		anchorData, err := dbo.FetchAnchorData(dBlock.GetDatabaseHeight())
 		if err != nil {
 			panic(err)
 			return 0, err
@@ -274,6 +240,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			}
 			blockCount++
 		}
+		currentHeadHeight = dBlock.GetDatabaseHeight()
 	}
 
 	err = dbo.UpdateAnchorDataHead()
@@ -282,7 +249,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		return 0, err
 	}
 
-	ps.LastFactomDBlockChecked = dBlockHead
 	ps.LastFactomDBlockHeightChecked = currentHeadHeight
 
 	err = dbo.InsertProgramState(ps)

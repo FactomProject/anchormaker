@@ -71,6 +71,25 @@ func GetDBlock(keymr string) (interfaces.IDirectoryBlock, error) {
 	return dblock, nil
 }
 
+func GetDBlockByHeight(height uint32) (interfaces.IDirectoryBlock, error) {
+	resp, err := factom.GetDBlockByHeight(int64(height))
+	if err != nil {
+		if err.Error() == "Block not found" {
+			return nil, nil
+		}
+		return nil, err
+	}
+	raw, err := hex.DecodeString(resp.RawData)
+	if err != nil {
+		return nil, err
+	}
+	dblock, err := directoryBlock.UnmarshalDBlock(raw)
+	if err != nil {
+		return nil, err
+	}
+	return dblock, nil
+}
+
 func GetABlock(keymr string) (interfaces.IAdminBlock, error) {
 	raw, err := GetRaw(keymr)
 	if err != nil {
