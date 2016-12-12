@@ -69,8 +69,8 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			time.Sleep(10 * time.Second)
 			fmt.Printf("\n\n\n")
+			time.Sleep(10 * time.Second)
 		}
 	}
 }

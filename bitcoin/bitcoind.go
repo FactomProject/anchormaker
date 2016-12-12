@@ -3,6 +3,7 @@ package bitcoin
 import (
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	//"github.com/FactomProject/anchormaker/anchorLog"
@@ -60,7 +61,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 	}
 
 	outputs := map[string]interface{}{}
-	outputs[address] = totalInputs - BTCFee
+	outputs[address] = trimBTCFloat(totalInputs - BTCFee)
 	outputs["data"] = data
 
 	raw, resp, err := bitcoind.CreateRawTransaction(usedList, outputs)
@@ -89,6 +90,13 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 	}
 
 	return txID, nil
+}
+
+func trimBTCFloat(f float64) float64 {
+	var tmp string = "%.8g"
+	tmp = fmt.Sprintf(tmp, f)
+	answer, _ := strconv.ParseFloat(tmp, 64)
+	return answer
 }
 
 func GetOurUnspentOutputs(address string) ([]bitcoind.UnspentOutput, error) {
