@@ -15,7 +15,8 @@ import (
 )
 
 var BTCAddress = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
-var BTCPrivKey = "cRhC7gEZMJdZ35SrBbcRX19R1sM3f5F1tHsmjPvsbfLSds81FxQp"
+
+//var BTCPrivKey = "cRhC7gEZMJdZ35SrBbcRX19R1sM3f5F1tHsmjPvsbfLSds81FxQp"
 var BTCFee float64 = 0.001
 var MinConfirmations int64 = 1
 
