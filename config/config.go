@@ -31,7 +31,7 @@ type AnchorConfig struct {
 		ServerECKey           string
 		BitcoinAnchorChainID  string
 		EthereumAnchorChainID string
-		AnchorSigPublicKey    string
+		AnchorSigPublicKey    []string
 		ConfirmationsNeeded   int
 	}
 	Btc struct {

@@ -19,7 +19,7 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
-var AnchorSigPublicKey *primitives.PublicKey
+var AnchorSigPublicKeys []interfaces.Verifier
 
 var ServerECKey *primitives.PrivateKey
 var ServerPrivKey *primitives.PrivateKey
@@ -48,10 +48,13 @@ func init() {
 }
 
 func LoadConfig(c *config.AnchorConfig) {
-	AnchorSigPublicKey = new(primitives.PublicKey)
-	err := AnchorSigPublicKey.UnmarshalText([]byte(c.Anchor.AnchorSigPublicKey))
-	if err != nil {
-		panic(err)
+	for _, v := range c.Anchor.AnchorSigPublicKey {
+		pubKey := new(primitives.PublicKey)
+		err := pubKey.UnmarshalText([]byte(v))
+		if err != nil {
+			panic(err)
+		}
+		AnchorSigPublicKeys = append(AnchorSigPublicKeys, pubKey)
 	}
 
 	key, err := primitives.NewPrivateKeyFromHex(c.Anchor.ServerECKey)
@@ -71,6 +74,7 @@ func LoadConfig(c *config.AnchorConfig) {
 		panic(err)
 	}
 	ServerPrivKey = key
+	AnchorSigPublicKeys = append(AnchorSigPublicKeys, ServerPrivKey.Pub)
 
 	FactoidBalanceThreshold = c.Factom.FactoidBalanceThreshold
 	ECBalanceThreshold = c.Factom.ECBalanceThreshold
@@ -146,7 +150,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			*/
 
 			if v.GetChainID().String() == BitcoinAnchorChainID.String() || v.GetChainID().String() == EthereumAnchorChainID.String() {
-				fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
+				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
 					return 0, err
@@ -155,11 +159,11 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if eh.IsMinuteMarker() == true {
 						continue
 					}
-					fmt.Printf("\t%v\n", eh.String())
+					//fmt.Printf("\t%v\n", eh.String())
 					if eh.String() == FirstBitcoinAnchorChainEntryHash.String() || eh.String() == FirstEthereumAnchorChainEntryHash.String() {
 						continue
 					}
-					fmt.Printf("Fetching %v\n", eh.String())
+					//fmt.Printf("Fetching %v\n", eh.String())
 					entry, err := api.GetEntry(eh.String())
 					if err != nil {
 						panic(err)
@@ -167,13 +171,14 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					//TODO: update existing anchor entries
-					//ar, valid, err := anchor.UnmarshalAndValidateAnchorRecord(entry.GetContent(), AnchorSigPublicKey)
-					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKey)
+					//ar, valid, err := anchor.UnmarshalAndValidateAnchorRecord(entry.GetContent(), AnchorSigPublicKeys)
+					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKeys)
 					if err != nil {
 						panic(err)
 						return 0, err
 					}
 					if valid == false {
+						fmt.Printf("Invalid anchor - %v\n", entry)
 						continue
 						//return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
 					}
@@ -191,6 +196,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 
 					if ar.Bitcoin != nil {
+						fmt.Printf("Found Bitcoin Anchor Record - %v, %v\n", ar.DBHeight, ar.KeyMR)
 						anchorData.Bitcoin.Address = ar.Bitcoin.Address
 						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
 						anchorData.Bitcoin.BlockHeight = int64(ar.Bitcoin.BlockHeight)
@@ -202,6 +208,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.BitcoinRecordEntryHash = eh.String()
 					}
 					if ar.Ethereum != nil {
+						fmt.Printf("Found Ethereum Anchor Record - %v, %v\n", ar.DBHeight, ar.KeyMR)
 						anchorData.Ethereum.Address = ar.Ethereum.Address
 						anchorData.Ethereum.TXID = ar.Ethereum.TXID
 						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
@@ -369,15 +376,10 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 
 //Construct the entry and submit it to the server
 func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) (string, error) {
-	record, sig, err := aRecord.MarshalAndSignV2(ServerPrivKey)
+	entry, err := CreateAnchorEntry(aRecord, chainID, ServerPrivKey)
 	if err != nil {
 		return "", err
 	}
-
-	entry := new(entryBlock.Entry)
-	entry.ChainID = chainID
-	entry.Content = primitives.ByteSlice{Bytes: record}
-	entry.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: sig}}
 
 	_, txID, err := JustFactomize(entry)
 	if err != nil {
@@ -385,6 +387,20 @@ func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.I
 	}
 
 	return txID, err
+}
+
+func CreateAnchorEntry(aRecord *anchor.AnchorRecord, chainID interfaces.IHash, serverPrivKey *primitives.PrivateKey) (*entryBlock.Entry, error) {
+	record, sig, err := aRecord.MarshalAndSignV2(ServerPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	entry := new(entryBlock.Entry)
+	entry.ChainID = chainID
+	entry.Content = primitives.ByteSlice{Bytes: record}
+	entry.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: sig}}
+
+	return entry, nil
 }
 
 func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {

@@ -12,7 +12,7 @@ import (
 	"github.com/FactomProject/anchormaker/database"
 	//"github.com/FactomProject/anchormaker/ethereum"
 	"github.com/FactomProject/anchormaker/factom"
-	"github.com/FactomProject/anchormaker/setup"
+	//"github.com/FactomProject/anchormaker/setup"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
 
-	setup.Setup(c)
+	//setup.Setup(c)
 
 	dbo := database.NewMapDB()
 	var err error
@@ -65,7 +65,7 @@ func main() {
 				panic(err)
 			}
 
-			err = AnchorLoop(dbo)
+			//err = AnchorLoop(dbo)
 			if err != nil {
 				panic(err)
 			}
