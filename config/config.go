@@ -28,11 +28,9 @@ type AnchorConfig struct {
 		ECBalanceThreshold      int64
 	}
 	Anchor struct {
-		ServerECKey           string
-		BitcoinAnchorChainID  string
-		EthereumAnchorChainID string
-		AnchorSigPublicKey    []string
-		ConfirmationsNeeded   int
+		ServerECKey         string
+		AnchorSigPublicKey  []string
+		ConfirmationsNeeded int
 	}
 	Btc struct {
 		BTCPubAddr         string
