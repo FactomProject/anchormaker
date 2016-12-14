@@ -14,17 +14,32 @@ import (
 	//"github.com/FactomProject/go-bip32"
 )
 
-var BTCAddress = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
+var BTCAddress string = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
 
 //var BTCPrivKey = "cRhC7gEZMJdZ35SrBbcRX19R1sM3f5F1tHsmjPvsbfLSds81FxQp"
 var BTCFee float64 = 0.001
 var MinConfirmations int64 = 1
+var WalletPassphrase string = "password"
+var RPCAddress string = "http://localhost:18332/"
+var RPCUser string = "user"
+var RPCPass string = "pass"
 
 func init() {
-	bitcoind.SetAddress("http://localhost:18332/", "user", "pass")
+	bitcoind.SetAddress(RPCAddress, RPCUser, RPCPass)
 }
 
 func InitRPCClient(cfg *config.AnchorConfig) error {
+	BTCAddress = cfg.Bitcoin.BTCAddress
+	BTCFee = cfg.Bitcoin.BTCFee
+
+	MinConfirmations = cfg.Bitcoin.MinConfirmations
+	WalletPassphrase = cfg.Bitcoin.WalletPassphrase
+
+	RPCAddress = cfg.Bitcoin.RPCAddress
+	RPCUser = cfg.Bitcoin.RPCUser
+	RPCPass = cfg.Bitcoin.RPCPass
+
+	bitcoind.SetAddress(RPCAddress, RPCUser, RPCPass)
 	return nil
 }
 
@@ -72,7 +87,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 	if resp.Error != nil {
 		return "", fmt.Errorf("%v", resp.Error)
 	}
-	bitcoind.WalletPassPhrase("password", 10)
+	bitcoind.WalletPassPhrase(WalletPassphrase, 10)
 	signed, resp, err := bitcoind.SignRawTransaction(raw)
 	bitcoind.WalletLock()
 	if err != nil {

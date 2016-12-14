@@ -32,20 +32,14 @@ type AnchorConfig struct {
 		AnchorSigPublicKey  []string
 		ConfirmationsNeeded int
 	}
-	Btc struct {
-		BTCPubAddr         string
-		SendToBTCinSeconds int
-		WalletPassphrase   string
-		CertHomePath       string
-		RpcClientHost      string
-		RpcClientEndpoint  string
-		RpcClientUser      string
-		RpcClientPass      string
-		BtcTransFee        float64
-		CertHomePathBtcd   string
-		RpcBtcdHost        string
-		RpcUser            string
-		RpcPass            string
+	Bitcoin struct {
+		BTCAddress       string
+		BTCFee           float64
+		MinConfirmations int64
+		WalletPassphrase string
+		RPCAddress       string
+		RPCUser          string
+		RPCPass          string
 	}
 	Ethereum struct {
 		WalletAddress      string
@@ -60,9 +54,6 @@ type AnchorConfig struct {
 		LogLevel string
 	}
 	Walletd factom.RPCConfig
-
-	//	AddPeers     []string `short:"a" long:"addpeer" description:"Add a peer to connect with at startup"`
-	//	ConnectPeers []string `long:"connect" description:"Connect only to the specified peers at startup"`
 
 	Proxy          string `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	DisableListen  bool   `long:"nolisten" description:"Disable listening for incoming connections -- NOTE: Listening is automatically disabled if the --connect or --proxy options are used without also specifying listen interfaces via --listen"`
@@ -107,18 +98,14 @@ ECBalanceThreshold					= 10000
 ; ------------------------------------------------------------------------------
 ; Bitcoin settings
 ; ------------------------------------------------------------------------------
-[btc]
-WalletPassphrase 					= "testNetPa55"
-CertHomePath						= "btcwallet"
-RpcClientHost						= "localhost:18332"
-RpcClientEndpoint					= "ws"
-RpcClientUser						= "testuser"
-RpcClientPass 						= "SecurePassHere"
-BtcTransFee							= 0.0001
-CertHomePathBtcd					= "btcd"
-RpcBtcdHost 						= "localhost:18334"
-RpcUser								= "testuser"
-RpcPass								= "SecurePassHere"
+[bitcoin]
+BTCAddress 							= "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
+BTCFee 								= 0.001
+MinConfirmations 					= 1
+WalletPassphrase 					= "password"
+RPCAddress							= "http://localhost:18332/"
+RPCUser								= "user"
+RPCPass								= "pass"
 
 ; ------------------------------------------------------------------------------
 ; Ethereum settings

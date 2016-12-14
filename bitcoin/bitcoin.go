@@ -20,16 +20,6 @@ func LoadConfig(c *config.AnchorConfig) {
 }
 
 func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
-	/*
-
-		// ListSinceBlockMinConfAsync returns an instance of a type that can be used to
-		// get the result of the RPC at some future time by invoking the Receive
-		// function on the returned instance.
-		//
-		// See ListSinceBlockMinConf for the blocking version and more details.
-		func (c *Client) ListSinceBlockMinConfAsync(blockHash *wire.ShaHash, minConfirms int) FutureListSinceBlockResult {
-	*/
-
 	txCount := 0
 	fmt.Println("SynchronizeBitcoinData")
 	for {
