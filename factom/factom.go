@@ -170,9 +170,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, err
 					}
 					//fmt.Printf("Entry - %v\n", entry)
-					//TODO: update existing anchor entries
-					//ar, valid, err := anchor.UnmarshalAndValidateAnchorRecord(entry.GetContent(), AnchorSigPublicKeys)
-					ar, valid, err := anchor.UnmarshalAndValidateAnchorRecordV2(entry.GetContent(), entry.ExternalIDs(), AnchorSigPublicKeys)
+					ar, valid, err := anchor.UnmarshalAndValidateAnchorEntryAnyVersion(entry, AnchorSigPublicKeys)
 					if err != nil {
 						panic(err)
 						return 0, err
