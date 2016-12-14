@@ -28,7 +28,7 @@ Next, make sure that bitcoind is also running.
 
 For testnet, run it with the `-testnet` flag.
 
-First and only the first time you are running bitcoind, make sure to run it with `-txindex=1 -rescan -reindex` flags to make sure we have access to raw transactions. You only need to run it once like this.
+First and only the first time you are running bitcoind, make sure to run it with `-txindex=1 -rescan -reindex` flags to make sure we have access to raw transactions. You only need to run it once like this. Make sure bitcoind synchronizes fully with these flags.
 
 Make sure your bitcoin .conf file has the following data (for testnet):
 
@@ -39,7 +39,6 @@ rpcuser=user
 rpcpassword=pass
 rpcallowip=0.0.0.0/0
 rpcport=18332
-gen=1
 ```
 
 Create a Bitcoin address and put it in your configuration file (((FOR NOW - PUT IT IN /bitcoin/bitcoind.go - LATER IT WILL BE READ FROM THE CONFIG))). Make sure the address has a lot of unspent outputs, roughly 0.1BTC apiece should be good to start.
