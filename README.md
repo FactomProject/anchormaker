@@ -49,3 +49,5 @@ Once the address balance is non-zero, you are able to run anchormaker successful
 go build
 ./anchormaker
 ```
+
+create new EC addresses in hex and human format [here](https://github.com/FactomProject/Testing/blob/master/examples/python/createECaddress.py)?
