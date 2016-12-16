@@ -186,7 +186,7 @@ func readAnchorConfig() *AnchorConfig {
 
 	err := gcfg.ReadFileInto(cfg, filename)
 	if err != nil {
-		log.Println("ERROR Reading config file!\nServer starting with default settings...\n", err)
+		log.Printf("ERROR Reading config file %v!\nServer starting with default settings...\n%v\n", filename, err)
 		gcfg.ReadStringInto(cfg, defaultConfig)
 	}
 
