@@ -22,7 +22,7 @@ Running Anchormaker
 First, make sure that factomd is running.
 
 
-**Note: Because this program will automatically write anchor records to the anchor chain [df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604](http://explorer.factom.org/chain/df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604), it is recommended that you run this program on a Factom sandbox, rather than on the live mainnet.**
+**Note: Because this program will automatically write anchor records to the anchor chain [df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604](http://explorer.factom.org/chain/df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604), it is recommended that you run this program on a Factom sandbox, rather than on the live mainnet.**  chain name: FactomAnchorChain
 
 Next, make sure that bitcoind is also running. 
 
