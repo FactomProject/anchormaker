@@ -3,7 +3,7 @@ package bitcoind
 import (
 	"crypto/tls"
 	"encoding/json"
-	//"fmt"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -60,6 +60,7 @@ func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
 		"params": params,
 	})
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 
@@ -77,16 +78,20 @@ func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
+	fmt.Printf("body - `%s`\n", body)
 	result := new(Result)
 	err = json.Unmarshal(body, &result)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	//fmt.Printf("%v\n", result)
@@ -101,11 +106,13 @@ func CallWithBasicAuthSingleParam(method string, params interface{}) (*Result, e
 		"params": params,
 	})
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", Address, strings.NewReader(string(data)))
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	req.SetBasicAuth(Username, Password)
@@ -117,16 +124,20 @@ func CallWithBasicAuthSingleParam(method string, params interface{}) (*Result, e
 
 	resp, err := client.Do(req)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
+	fmt.Printf("body - `%s`\n", body)
 	result := new(Result)
 	err = json.Unmarshal(body, &result)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	//fmt.Printf("%v\n", result)
