@@ -41,7 +41,7 @@ rpcallowip=0.0.0.0/0
 rpcport=18332
 ```
 
-Create a Bitcoin address and put it in your configuration file (((FOR NOW - PUT IT IN /bitcoin/bitcoind.go - LATER IT WILL BE READ FROM THE CONFIG))). Make sure the address has a lot of unspent outputs, roughly 0.1BTC apiece should be good to start.
+Create a Bitcoin address and put it in your configuration file. Make sure the address has a lot of unspent outputs, roughly 0.1BTC apiece should be good to start.
 
 Once the address balance is non-zero, you are able to run anchormaker successfully. From the $HOME/github.com/FactomProject/anchormaker/ folder, you can run:
 
