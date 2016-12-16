@@ -72,7 +72,7 @@ func TestTopupECAddress(t *testing.T) {
 
 	fmt.Printf("TopupECAddress - %v, %v\n", fAddress, ecAddress)
 
-	tx, err := factom.BuyExactEC(fAddress, ecAddress, uint64(c.Factom.ECBalanceThreshold))
+	tx, err := factom.BuyExactEC(fAddress, ecAddress, uint64(c.Factom.ECBalanceThreshold), true)
 	if err != nil {
 		panic(err)
 	}
