@@ -18,7 +18,8 @@ func Setup(c *config.AnchorConfig) {
 
 	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
 	if err != nil {
-		panic(err)
+		fmt.Printf("ERROR: %v\n", err)
+		return
 	}
 
 	fmt.Printf("Balances - %v, %v\n", fBalance, ecBalance)
@@ -30,18 +31,21 @@ func Setup(c *config.AnchorConfig) {
 		}
 		err = anchorFactom.TopupECAddress()
 		if err != nil {
-			panic(err)
+			fmt.Printf("ERROR: %v\n", err)
+			return
 		}
 	}
 
 	err = CheckAndCreateBitcoinAnchorChain()
 	if err != nil {
-		panic(err)
+		fmt.Printf("ERROR: %v\n", err)
+		return
 	}
 
 	err = CheckAndCreateEthereumAnchorchain()
 	if err != nil {
-		panic(err)
+		fmt.Printf("ERROR: %v\n", err)
+		return
 	}
 
 	fmt.Printf("Setup complete!\n")
@@ -106,11 +110,13 @@ func CreateChain(e *entryBlock.Entry) error {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx1, "")
 		if err != nil {
-			panic(err)
+			fmt.Printf("ERROR: %v\n", err)
+			return err
 		}
 		str, err := primitives.EncodeJSONString(ack)
 		if err != nil {
-			panic(err)
+			fmt.Printf("ERROR: %v\n", err)
+			return err
 		}
 		fmt.Printf("ack1 - %v", str)
 		for j := 0; j < i+1; j++ {
@@ -131,12 +137,14 @@ func CreateChain(e *entryBlock.Entry) error {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx2, "")
 		if err != nil {
-			panic(err)
+			fmt.Printf("ERROR: %v\n", err)
+			return err
 		}
 
 		str, err := primitives.EncodeJSONString(ack)
 		if err != nil {
-			panic(err)
+			fmt.Printf("ERROR: %v\n", err)
+			return err
 		}
 		fmt.Printf("ack2 - %v", str)
 		for j := 0; j < i+1; j++ {

@@ -62,12 +62,14 @@ func main() {
 		default:
 			err := SynchronizationLoop(dbo)
 			if err != nil {
-				panic(err)
+				fmt.Printf("ERROR: %v\n", err)
+				continue
 			}
 
 			err = AnchorLoop(dbo)
 			if err != nil {
-				panic(err)
+				fmt.Printf("ERROR: %v\n", err)
+				continue
 			}
 			fmt.Printf("\n\n\n")
 			time.Sleep(10 * time.Second)
@@ -102,21 +104,18 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 		fmt.Printf("Loop %v\n", i)
 		blockCount, err := factom.SynchronizeFactomData(dbo)
 		if err != nil {
-			panic(err)
 			return err
 		}
 		fmt.Printf("blockCount - %v\n", blockCount)
 
 		/*txCount, err := ethereum.SynchronizeEthereumData(dbo)
 		if err != nil {
-			panic(err)
 			return err
 		}
 		fmt.Printf("txCount - %v\n", txCount)*/
 
 		btcCount, err := bitcoin.SynchronizeBitcoinData(dbo)
 		if err != nil {
-			panic(err)
 			return err
 		}
 		fmt.Printf("btcCount - %v\n", btcCount)
@@ -140,8 +139,8 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 		if err != nil {
 			return err
 		}*/
-
-	err := bitcoin.AnchorBlocksIntoBitcoin(dbo)
+	var err error
+	//err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
 	if err != nil {
 		return err
 	}

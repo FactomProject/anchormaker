@@ -98,7 +98,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	blockCount := 0
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
-		panic(err)
 		return 0, err
 	}
 	nextHeight := ps.LastFactomDBlockHeightChecked
@@ -112,7 +111,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for {
 		dBlock, err := api.GetDBlockByHeight(nextHeight)
 		if err != nil {
-			panic(err)
 			return 0, err
 		}
 		if dBlock == nil {
@@ -132,23 +130,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
 			//Looking for Bitcoin and Ethereum anchors
-
-			/*
-
-
-
-
-
-
-			   DOOOOOOOO
-
-
-
-
-
-
-			*/
-
 			if v.GetChainID().String() == BitcoinAnchorChainID.String() || v.GetChainID().String() == EthereumAnchorChainID.String() {
 				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
@@ -166,13 +147,11 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					//fmt.Printf("Fetching %v\n", eh.String())
 					entry, err := api.GetEntry(eh.String())
 					if err != nil {
-						panic(err)
 						return 0, err
 					}
 					//fmt.Printf("Entry - %v\n", entry)
 					ar, valid, err := anchor.UnmarshalAndValidateAnchorEntryAnyVersion(entry, AnchorSigPublicKeys)
 					if err != nil {
-						panic(err)
 						return 0, err
 					}
 					if valid == false {
@@ -184,7 +163,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 					anchorData, err := dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
-						panic(err)
 						return 0, err
 					}
 					if anchorData.DBlockKeyMR != ar.KeyMR {
@@ -220,7 +198,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 					err = dbo.InsertAnchorData(anchorData, false)
 					if err != nil {
-						panic(err)
 						return 0, err
 					}
 					blockCount++
@@ -231,7 +208,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		//Updating new directory blocks
 		anchorData, err := dbo.FetchAnchorData(dBlock.GetDatabaseHeight())
 		if err != nil {
-			panic(err)
 			return 0, err
 		}
 		if anchorData == nil {
@@ -240,7 +216,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			anchorData.DBlockKeyMR = dBlock.DatabasePrimaryIndex().String()
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
-				panic(err)
 				return 0, err
 			}
 			blockCount++
@@ -250,7 +225,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	err = dbo.UpdateAnchorDataHead()
 	if err != nil {
-		panic(err)
 		return 0, err
 	}
 
@@ -258,7 +232,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	err = dbo.InsertProgramState(ps)
 	if err != nil {
-		panic(err)
 		return 0, err
 	}
 
@@ -511,12 +484,12 @@ func TopupECAddress() error {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx.TxID, "")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		str, err := primitives.EncodeJSONString(ack)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		fmt.Printf("Topup ack - %v", str)
 		for j := 0; j < i+1; j++ {
@@ -535,10 +508,10 @@ func TopupECAddress() error {
 
 	_, ecBalance, err := CheckFactomBalance()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if ecBalance < ECBalanceThreshold {
-		panic("Balance was not increased!")
+		return fmt.Errorf("Balance was not increased!")
 	}
 
 	return nil

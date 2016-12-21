@@ -65,7 +65,6 @@ func CallWithBasicAuth(method string, params []interface{}) (*Result, error) {
 
 	req, err := http.NewRequest("POST", Address, strings.NewReader(string(data)))
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	req.SetBasicAuth(Username, Password)
@@ -487,7 +486,6 @@ func GetRawTransactionWithVerbose(txid string) (*DetailedTransaction, *Result, e
 	//version 0.7 Returns raw transaction representation for given transaction id.
 	resp, err := CallWithBasicAuth("getrawtransaction", []interface{}{txid, 1})
 	if err != nil {
-		panic(err)
 		return nil, nil, err
 	}
 	if resp.Error != nil {
