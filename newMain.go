@@ -140,7 +140,7 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 			return err
 		}*/
 	var err error
-	//err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
+	err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
 	if err != nil {
 		return err
 	}
