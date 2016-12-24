@@ -63,12 +63,14 @@ func main() {
 			err := SynchronizationLoop(dbo)
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)
+				time.Sleep(10 * time.Second)
 				continue
 			}
 
 			err = AnchorLoop(dbo)
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)
+				time.Sleep(10 * time.Second)
 				continue
 			}
 			fmt.Printf("\n\n\n")
