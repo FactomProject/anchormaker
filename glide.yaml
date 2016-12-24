@@ -1,0 +1,21 @@
+package: github.com/FactomProject/anchormaker
+import:
+- package: github.com/FactomProject/EthereumAPI
+- package: github.com/FactomProject/factom
+  subpackages:
+  - wallet
+  - wallet/wsapi
+- package: github.com/FactomProject/factomd
+  subpackages:
+  - anchor
+  - common/adminBlock
+  - common/directoryBlock
+  - common/entryBlock
+  - common/entryCreditBlock
+  - common/factoid
+  - common/interfaces
+  - common/primitives
+  - database/databaseOverlay
+  - database/hybridDB
+  - database/mapdb
+- package: gopkg.in/gcfg.v1
