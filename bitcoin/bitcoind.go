@@ -68,7 +68,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 	for _, v := range inputs {
 		totalInputs += v.Amount
 		usedList = append(usedList, bitcoind.RawTransactionInput{TxID: v.TXId, VOut: v.VOut})
-		if totalInputs > BTCFee {
+		if totalInputs > BTCFee*2 {
 			break
 		}
 	}
