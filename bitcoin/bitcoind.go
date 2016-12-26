@@ -154,6 +154,9 @@ func ListBitcoinTransactionsSinceBlock(block string) ([]Transaction, string, err
 	if err != nil {
 		return nil, "", err
 	}
+	if resp == nil || txs == nil {
+		return nil, "", fmt.Errorf("Function returned nothing - should not happen!")
+	}
 	if resp.Error != nil {
 		return nil, "", fmt.Errorf("%v", resp.Error)
 	}
