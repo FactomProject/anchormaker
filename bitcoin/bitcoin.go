@@ -105,6 +105,7 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 	fmt.Println("AnchorBlocksIntoBitcoin")
+	UpdateFee()
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		return err

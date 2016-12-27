@@ -43,6 +43,24 @@ func InitRPCClient(cfg *config.AnchorConfig) error {
 	return nil
 }
 
+func UpdateFee() {
+	fee, _, err := bitcoind.EstimateFee(6)
+	if err != nil {
+		//If we have an error, revert to default
+		BTCFee = 0.001
+		return
+	}
+	if fee > 0 {
+		//If bitcoind gives us an estimate, use it
+		//Our transactions are ~250bytes, estimatefee lists price per 1kB
+		//We can overpay a bit
+		BTCFee = fee
+		return
+	}
+	//If bitcoind can't estimate the fee, revert to default
+	BTCFee = 0.001
+}
+
 // SendRawTransactionToBTC is the main function used to anchor factom
 // dir block hash to bitcoin blockchain
 func SendRawTransactionToBTC(hash string, blockHeight uint32) (string, error) {

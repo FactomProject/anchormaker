@@ -189,6 +189,24 @@ func EncryptWallet(passphrase []interface{}) (*Result, error) {
 	return resp, err
 }
 
+func EstimateFee(blocks int64) (float64, *Result, error) {
+	//The estimatefee RPC estimates the transaction fee per kilobyte that needs to be paid for a transaction to be included within a certain number of blocks.
+	resp, err := CallWithBasicAuth("estimatefee", []interface{}{blocks})
+	if err != nil {
+		return -1, nil, err
+	}
+	if resp.Error != nil {
+		return -1, nil, err
+	}
+	var answer float64
+	err = resp.ParseResult(&answer)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return answer, resp, err
+}
+
 func GetAccount(bitcoinaddress []interface{}) (*Result, error) {
 	//Returns the account associated with the given address.
 	resp, err := CallWithBasicAuth("getaccount", bitcoinaddress)
