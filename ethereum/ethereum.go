@@ -18,7 +18,7 @@ var ContractAddress string = "0x7e79c06E18Af0464382c2cd089A20dc49F2EBf86"
 var GasPrice string = "0x10FFFF"
 var IgnoreWrongEntries bool = false
 
-//"0xd36b1da5"
+//"0xbbcc0c80"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
@@ -64,7 +64,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 				continue
 			}
 			//makign sure the input is of correct length
-			if len(tx.Input) == 202 {
+			if len(tx.Input) == 138 {
 				//making sure the right function is called
 				if tx.Input[:10] == FunctionPrefix {
 					dbHeight, keyMR := ParseInput(tx.Input)

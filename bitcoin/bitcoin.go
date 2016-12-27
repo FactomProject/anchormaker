@@ -118,7 +118,7 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 		height = ad.DBlockHeight + 1
 	}
 
-	for {
+	for i := 0; i < 10; i++ {
 		ad, err = dbo.FetchAnchorData(height)
 		if err != nil {
 			return err
