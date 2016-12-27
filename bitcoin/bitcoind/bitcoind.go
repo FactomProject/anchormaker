@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+//https://bitcoin.org/en/developer-reference
+
 var Address string
 var Username string
 var Password string
@@ -134,6 +136,7 @@ func CallWithBasicAuthSingleParam(method string, params interface{}) (*Result, e
 
 /*
 //https://en.bitcoin.it/wiki/Api#Full_list\
+//https://bitcoin.org/en/developer-reference
 */
 
 func BackupWallet(destination []interface{}) (*Result, error) {
