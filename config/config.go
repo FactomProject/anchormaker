@@ -48,6 +48,7 @@ type AnchorConfig struct {
 		GasPrice           string
 		ServerAddress      string
 		IgnoreWrongEntries bool
+		TestNet            bool
 	}
 	Log struct {
 		LogPath  string
@@ -111,12 +112,13 @@ RPCPass								= "pass"
 ; Ethereum settings
 ; ------------------------------------------------------------------------------
 [ethereum]
-WalletAddress						= "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
+WalletAddress						= "0x4da6BAe6689f60e30B575Ca7D3B075605135ee86"
 WalletPassword						= "pass"
-ContractAddress 					= "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
+ContractAddress 					= "0x7e79c06E18Af0464382c2cd089A20dc49F2EBf86"
 GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
 IgnoreWrongEntries					= true
+TestNet								= true
 
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none

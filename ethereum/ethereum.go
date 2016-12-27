@@ -28,6 +28,8 @@ func LoadConfig(c *config.AnchorConfig) {
 	GasPrice = c.Ethereum.GasPrice
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
+	EthereumAPI.EtherscanTestNet = c.Ethereum.TestNet
+
 	//TODO: load ServerAddress into EthereumAPI
 }
 
