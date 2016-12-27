@@ -12,14 +12,14 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
-var WalletAddress string = "0x838f9b4d8ea3ff2f1bd87b13684f59c4c57a618b"
+var WalletAddress string = "0x4da6BAe6689f60e30B575Ca7D3B075605135ee86"
 var WalletPassword string = "pass"
-var ContractAddress string = "0x8a8fbabbec1e99148083e9314dffd82395dd8f18"
+var ContractAddress string = "0x7e79c06E18Af0464382c2cd089A20dc49F2EBf86"
 var GasPrice string = "0x10FFFF"
 var IgnoreWrongEntries bool = false
 
 //"0xd36b1da5"
-var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)") //TODO: update prefix on final smart contract deployment
+var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = c.Ethereum.WalletAddress
@@ -67,7 +67,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			if len(tx.Input) == 202 {
 				//making sure the right function is called
 				if tx.Input[:10] == FunctionPrefix {
-					dbHeight, keyMR, _ := ParseInput(tx.Input)
+					dbHeight, keyMR := ParseInput(tx.Input)
 
 					ad, err := dbo.FetchAnchorData(dbHeight)
 					if err != nil {
@@ -137,17 +137,16 @@ func AtoiHex(s string) int64 {
 	return i
 }
 
-func ParseInput(input string) (dBlockHeight uint32, keyMR string, hash string) {
-	if len(input) == 202 {
+func ParseInput(input string) (dBlockHeight uint32, keyMR string) {
+	if len(input) == 138 {
 		if input[:10] == FunctionPrefix {
 			input = input[10:]
 			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
-			keyMR, input = input[:64], input[64:]
-			hash = input[:64]
+			keyMR = input[:64]
 			return
 		}
 	}
-	return 0, "", ""
+	return 0, ""
 }
 
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
@@ -179,7 +178,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 
 		//fmt.Printf("Anchoring %v\n", height)
 		time.Sleep(5 * time.Second)
-		tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR, ad.DBlockKeyMR)
+		tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR)
 		if err != nil {
 			return err
 		}
@@ -198,12 +197,11 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-func AnchorBlock(height int64, keyMR string, hash string) (string, error) {
+func AnchorBlock(height int64, keyMR string) (string, error) {
 	data := "0x"
-	data += EthereumAPI.StringToMethodID("setAnchor(uint256,uint256,uint256)")
+	data += EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)")
 	data += EthereumAPI.IntToData(height)
 	data += keyMR
-	data += hash
 
 	tx := new(EthereumAPI.TransactionObject)
 	tx.From = WalletAddress

@@ -10,7 +10,7 @@ import (
 	"github.com/FactomProject/anchormaker/bitcoin"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
-	//"github.com/FactomProject/anchormaker/ethereum"
+	"github.com/FactomProject/anchormaker/ethereum"
 	"github.com/FactomProject/anchormaker/factom"
 	"github.com/FactomProject/anchormaker/setup"
 )
@@ -19,7 +19,7 @@ func main() {
 	c := config.ReadConfig()
 
 	bitcoin.LoadConfig(c)
-	//ethereum.LoadConfig(c)
+	ethereum.LoadConfig(c)
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
 
@@ -110,11 +110,11 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 		}
 		fmt.Printf("blockCount - %v\n", blockCount)
 
-		/*txCount, err := ethereum.SynchronizeEthereumData(dbo)
+		txCount, err := ethereum.SynchronizeEthereumData(dbo)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("txCount - %v\n", txCount)*/
+		fmt.Printf("txCount - %v\n", txCount)
 
 		btcCount, err := bitcoin.SynchronizeBitcoinData(dbo)
 		if err != nil {
@@ -122,8 +122,8 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 		}
 		fmt.Printf("btcCount - %v\n", btcCount)
 
-		//if (blockCount + txCount + btcCount) == 0 {
-		if (blockCount + btcCount) == 0 {
+		if (blockCount + txCount + btcCount) == 0 {
+			//if (blockCount + btcCount) == 0 {
 			//if (blockCount + txCount) == 0 {
 			break
 		}
@@ -134,14 +134,14 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 
 func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
 	factom.CheckFactomBalance()
-	/*
-		var err error
 
-		err = ethereum.AnchorBlocksIntoEthereum(dbo)
-		if err != nil {
-			return err
-		}*/
 	var err error
+
+	err = ethereum.AnchorBlocksIntoEthereum(dbo)
+	if err != nil {
+		return err
+	}
+
 	err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
 	if err != nil {
 		return err
