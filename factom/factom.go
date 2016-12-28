@@ -172,7 +172,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 
 					if ar.Bitcoin != nil {
-						fmt.Printf("Found Bitcoin Anchor Record - %v, %v\n", ar.DBHeight, ar.KeyMR)
+						fmt.Printf("Found Bitcoin Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Bitcoin.Address = ar.Bitcoin.Address
 						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
 						anchorData.Bitcoin.BlockHeight = int64(ar.Bitcoin.BlockHeight)
@@ -180,11 +180,11 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.Bitcoin.Offset = int64(ar.Bitcoin.Offset)
 
 						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
-						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
+						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.BitcoinRecordEntryHash = eh.String()
 					}
 					if ar.Ethereum != nil {
-						fmt.Printf("Found Ethereum Anchor Record - %v, %v\n", ar.DBHeight, ar.KeyMR)
+						fmt.Printf("Found Ethereum Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Ethereum.Address = ar.Ethereum.Address
 						anchorData.Ethereum.TXID = ar.Ethereum.TXID
 						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
@@ -192,7 +192,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.Ethereum.Offset = ar.Ethereum.Offset
 
 						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
-						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
+						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.EthereumRecordEntryHash = eh.String()
 					}
 

@@ -107,7 +107,7 @@ func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
 	} else {
 		nextCheck = ad.DBlockHeight + 1
 	}
-	fmt.Printf("nextCheck - %v\n", nextCheck)
+	fmt.Printf("\nnextCheck - %v\n", nextCheck)
 	head := ad
 	for {
 		ad, err = db.FetchAnchorData(nextCheck)
@@ -124,6 +124,7 @@ func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
 		}
 		nextCheck++
 	}
+	fmt.Printf("\n")
 	if head != nil {
 		err = db.InsertAnchorData(head, true)
 		if err != nil {
