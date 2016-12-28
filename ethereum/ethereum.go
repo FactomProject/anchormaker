@@ -3,6 +3,7 @@ package ethereum
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/FactomProject/EthereumAPI"
@@ -22,9 +23,9 @@ var IgnoreWrongEntries bool = false
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
-	WalletAddress = c.Ethereum.WalletAddress
+	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
 	WalletPassword = c.Ethereum.WalletPassword
-	ContractAddress = c.Ethereum.ContractAddress
+	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
 	GasPrice = c.Ethereum.GasPrice
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
@@ -60,8 +61,8 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			if Atoi(tx.BlockNumber) > lastBlock {
 				lastBlock = Atoi(tx.BlockNumber)
 			}
-			if tx.From != WalletAddress {
-				fmt.Printf("Not from our address - %v\n", tx.From)
+			if strings.ToLower(tx.From) != WalletAddress {
+				fmt.Printf("Not from our address - %v vs %v\n", tx.From, WalletAddress)
 				//ignoring transactions that are not ours
 				continue
 			}
@@ -94,10 +95,10 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						continue
 					}
 
-					ad.Ethereum.Address = tx.From
-					ad.Ethereum.TXID = tx.Hash
+					ad.Ethereum.Address = strings.ToLower(tx.From)
+					ad.Ethereum.TXID = strings.ToLower(tx.Hash)
 					ad.Ethereum.BlockHeight = Atoi(tx.BlockNumber)
-					ad.Ethereum.BlockHash = tx.BlockHash
+					ad.Ethereum.BlockHash = strings.ToLower(tx.BlockHash)
 					ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
 
 					err = dbo.InsertAnchorData(ad, false)
