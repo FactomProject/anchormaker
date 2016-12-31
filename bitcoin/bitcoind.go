@@ -17,7 +17,7 @@ import (
 var BTCAddress string = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
 
 //var BTCPrivKey = "cRhC7gEZMJdZ35SrBbcRX19R1sM3f5F1tHsmjPvsbfLSds81FxQp"
-var BTCFee float64 = 0.001
+var BTCFee float64 = 0.0002
 var MinConfirmations int64 = 1
 var WalletPassphrase string = "password"
 var RPCAddress string = "http://localhost:18332/"
@@ -53,8 +53,8 @@ func UpdateFee() {
 	if fee > 0 {
 		//If bitcoind gives us an estimate, use it
 		//Our transactions are ~250bytes, estimatefee lists price per 1kB
-		//We can overpay a bit
-		BTCFee = fee
+		//So we divide by 4
+		BTCFee = fee * 0.25
 		return
 	}
 	//If bitcoind can't estimate the fee, revert to default
@@ -86,7 +86,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 	for _, v := range inputs {
 		totalInputs += v.Amount
 		usedList = append(usedList, bitcoind.RawTransactionInput{TxID: v.TXId, VOut: v.VOut})
-		if totalInputs > BTCFee*2 {
+		if totalInputs > BTCFee*4 {
 			break
 		}
 	}
