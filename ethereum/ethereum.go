@@ -166,38 +166,57 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		height = ad.DBlockHeight + 1
 	}
 
-	for i := 0; i < 10; {
-		ad, err = dbo.FetchAnchorData(height)
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		return err
+	}
+	//We first anchor the newest block before proceeding to anchor older blocks
+	_, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 10; i++ {
+		done, err := AnchorBlockByHeight(height)
 		if err != nil {
 			return err
 		}
-		if ad == nil {
+		if done == true {
 			return nil
 		}
-		if ad.Ethereum.TXID != "" {
-			height = ad.DBlockHeight + 1
-			continue
-		}
-
-		//fmt.Printf("Anchoring %v\n", height)
-		time.Sleep(5 * time.Second)
-		tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Anchored %v\n", height)
-
-		ad.Ethereum.TXID = tx
-		err = dbo.InsertAnchorData(ad, false)
-		if err != nil {
-			return err
-		}
-		height = ad.DBlockHeight + 1
-
-		i++
+		height++
 	}
 
 	return nil
+}
+
+//returns true if we are done anchoring forward
+func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (bool, error) {
+	ad, err = dbo.FetchAnchorData(height)
+	if err != nil {
+		return true, err
+	}
+	if ad == nil {
+		return true, nil
+	}
+	if ad.Ethereum.TXID != "" {
+		return false, nil
+	}
+
+	//fmt.Printf("Anchoring %v\n", height)
+	time.Sleep(5 * time.Second)
+	tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR)
+	if err != nil {
+		return true, err
+	}
+	fmt.Printf("Anchored %v\n", height)
+
+	ad.Ethereum.TXID = tx
+	err = dbo.InsertAnchorData(ad, false)
+	if err != nil {
+		return true, err
+	}
+	return false, nil
 }
 
 func AnchorBlock(height int64, keyMR string) (string, error) {
