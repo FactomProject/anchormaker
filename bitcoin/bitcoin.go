@@ -118,44 +118,65 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 		height = ad.DBlockHeight + 1
 	}
 
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		return err
+	}
+	//We first anchor the newest block before proceeding to anchor older blocks
+	_, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < 10; i++ {
-		ad, err = dbo.FetchAnchorData(height)
+		done, err := AnchorBlockByHeight(dbo, height)
 		if err != nil {
 			return err
 		}
-		if ad == nil {
+		if done == true {
 			return nil
-		}
-		if ad.Bitcoin.TXID != "" {
-			height++
-			continue
-		}
-
-		fmt.Printf("Anchoring %v\n", height)
-		time.Sleep(5 * time.Second)
-		h, err := primitives.NewShaHashFromStr(ad.DBlockKeyMR)
-		if err != nil {
-			return err
-		}
-
-		tx, err := SendRawTransactionToBTC(h.String(), ad.DBlockHeight)
-		if err != nil {
-			return err
-		}
-		if tx == "" {
-			//No error, but couldn't anchor, will try later.
-			return nil
-		}
-
-		fmt.Printf("Anchored %v\n\n", height)
-
-		ad.Bitcoin.TXID = tx
-		err = dbo.InsertAnchorData(ad, false)
-		if err != nil {
-			return err
 		}
 		height++
 	}
 
 	return nil
+}
+
+//returns true if we are done anchoring forward
+func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (bool, error) {
+	ad, err := dbo.FetchAnchorData(height)
+	if err != nil {
+		return true, err
+	}
+	if ad == nil {
+		return true, nil
+	}
+	if ad.Bitcoin.TXID != "" {
+		return false, nil
+	}
+
+	fmt.Printf("Anchoring %v\n", height)
+	time.Sleep(5 * time.Second)
+	h, err := primitives.NewShaHashFromStr(ad.DBlockKeyMR)
+	if err != nil {
+		return true, err
+	}
+
+	tx, err := SendRawTransactionToBTC(h.String(), ad.DBlockHeight)
+	if err != nil {
+		return true, err
+	}
+	if tx == "" {
+		//No error, but couldn't anchor, will try later.
+		return true, nil
+	}
+
+	fmt.Printf("Anchored %v\n\n", height)
+
+	ad.Bitcoin.TXID = tx
+	err = dbo.InsertAnchorData(ad, false)
+	if err != nil {
+		return true, err
+	}
+	return false, nil
 }
