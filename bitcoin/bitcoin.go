@@ -123,13 +123,13 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 	//We first anchor the newest block before proceeding to anchor older blocks
-	_, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
+	_, _, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < 10; i++ {
-		done, err := AnchorBlockByHeight(dbo, height)
+	for i := 0; i < 10; {
+		done, skip, err := AnchorBlockByHeight(dbo, height)
 		if err != nil {
 			return err
 		}
@@ -137,38 +137,55 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 		height++
+		if skip == true {
+			continue
+		}
+		i++
 	}
 
 	return nil
 }
 
-//returns true if we are done anchoring forward
-func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (bool, error) {
+//returns done when we're done anchoring
+//returns skip if we can skip anchoring this block
+func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
 	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
-		return true, err
+		done = true
+		skip = false
+		return
 	}
 	if ad == nil {
-		return true, nil
+		done = true
+		skip = false
+		return
 	}
 	if ad.Bitcoin.TXID != "" {
-		return false, nil
+		done = false
+		skip = true
+		return
 	}
 
 	fmt.Printf("Anchoring %v\n", height)
 	time.Sleep(5 * time.Second)
 	h, err := primitives.NewShaHashFromStr(ad.DBlockKeyMR)
 	if err != nil {
-		return true, err
+		done = true
+		skip = false
+		return
 	}
 
 	tx, err := SendRawTransactionToBTC(h.String(), ad.DBlockHeight)
 	if err != nil {
-		return true, err
+		done = true
+		skip = false
+		return
 	}
 	if tx == "" {
 		//No error, but couldn't anchor, will try later.
-		return true, nil
+		done = true
+		skip = false
+		return
 	}
 
 	fmt.Printf("Anchored %v\n\n", height)
@@ -176,7 +193,11 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (bo
 	ad.Bitcoin.TXID = tx
 	err = dbo.InsertAnchorData(ad, false)
 	if err != nil {
-		return true, err
+		done = true
+		skip = false
+		return
 	}
-	return false, nil
+	done = false
+	skip = false
+	return
 }
