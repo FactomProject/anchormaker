@@ -169,17 +169,29 @@ func GetSpendableOutputs(address string) ([]bitcoind.UnspentOutput, error) {
 func ListBitcoinTransactionsSinceBlock(block string) ([]Transaction, string, error) {
 	fmt.Printf("ListBitcoinTransactionsSinceBlock\n")
 	txs, resp, err := bitcoind.ListSinceBlock(block, MinConfirmations)
+	fmt.Printf("ListBitcoinTransactionsSinceBlockReturned\n")
 	if err != nil {
+		fmt.Printf("error in bitcoind.ListSinceBlock %v %v\n", block, MinConfirmations)
 		return nil, "", err
 	}
 	if resp == nil || txs == nil {
+		if resp == nil {
+			fmt.Printf("nil response in bitcoind.ListSinceBlock %v %v\n", block, MinConfirmations)
+		}
+		if txs == nil {
+			fmt.Printf("no transactions returned in bitcoind.ListSinceBlock %v %v\n", block, MinConfirmations)
+		}
+		
 		return nil, "", fmt.Errorf("Function returned nothing - should not happen!")
 	}
 	if resp.Error != nil {
+		fmt.Printf("error returned from resp.Error bitcoind.ListSinceBlock %v %v\n", block, MinConfirmations)
 		return nil, "", fmt.Errorf("%v", resp.Error)
 	}
+	fmt.Printf("sending ToTransactions %v\n", len(txs.Transactions))
 	ts, err := ToTransactions(txs.Transactions)
 	if err != nil {
+		fmt.Printf("error in ToTransactions\n")
 		return nil, "", err
 	}
 	return ts, txs.LastBlock, nil
