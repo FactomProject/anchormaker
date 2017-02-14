@@ -53,9 +53,9 @@ func UpdateFee() {
 	}
 	if fee > 0 {
 		//If bitcoind gives us an estimate, use it
-		//Our transactions are ~250bytes, estimatefee lists price per 1kB
-		//So we divide by 4
-		BTCFee = fee * 0.25
+		//Our transactions are ~243bytes, estimatefee lists price per 1kB
+		//So we divide by ~4
+		BTCFee = fee * 0.243
 		return
 	}
 	//If bitcoind can't estimate the fee, revert to default
@@ -84,19 +84,41 @@ func SendRawTransactionToBTC(hash string, blockHeight uint32) (string, error) {
 func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (string, error) {
 	var totalInputs float64 = 0
 	usedList := []bitcoind.RawTransactionInput{}
+	var inputCount int = 0
+	var BTCFeeForThisTx float64
+	BTCFeeForThisTx = BTCFee
 	for _, v := range inputs {
 		totalInputs += v.Amount
 		usedList = append(usedList, bitcoind.RawTransactionInput{TxID: v.TXId, VOut: v.VOut})
+		inputCount += 1
 		if totalInputs > BTCFee*4 {
 			break
 		}
 	}
-	if totalInputs < BTCFee {
+	//additional inputs beyond one each take 146 bytes.
+	//add additional fee for the extra inputs
+	if inputCount > 1 {
+		if inputCount > 5 {
+			fmt.Printf("Trying to make a tx with > 5 inputs. only paying fees for 5 of the %v inputs\n", inputCount)
+			inputCount = 5 //dont let spam dust burn a lot of fees.
+		}
+		var feeMultiplier float64
+		var extraBytes float64
+		extraBytes = float64(inputCount) * 146   //each additional input takes about 146 bytes
+		feeMultiplier = (243 + extraBytes) / 243 //the normal transaction takes 243 bytes
+		if feeMultiplier > 5 {
+			fmt.Printf("Trying use a fee multiplier > 5x. Reducing to 5 from %v\n", feeMultiplier)
+			feeMultiplier = 5
+		}
+		BTCFeeForThisTx = BTCFee * feeMultiplier
+		fmt.Printf("More than 1 input for a BTC tx, increasing fee from %v to %v\n", BTCFee, BTCFeeForThisTx)
+	}
+	if totalInputs < BTCFeeForThisTx {
 		return "", nil //fmt.Errorf("Not enough money to cover fees")
 	}
 
 	outputs := map[string]interface{}{}
-	outputs[address] = trimBTCFloat(totalInputs - BTCFee)
+	outputs[address] = trimBTCFloat(totalInputs - BTCFeeForThisTx)
 	outputs["data"] = data
 
 	raw, resp, err := bitcoind.CreateRawTransaction(usedList, outputs)
