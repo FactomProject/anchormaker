@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	//"github.com/FactomProject/anchormaker/anchorLog"
 	"github.com/FactomProject/anchormaker/bitcoin/bitcoind"
@@ -181,7 +182,7 @@ func ListBitcoinTransactionsSinceBlock(block string) ([]Transaction, string, err
 		if txs == nil {
 			fmt.Printf("no transactions returned in bitcoind.ListSinceBlock %v %v\n", block, MinConfirmations)
 		}
-		
+
 		return nil, "", fmt.Errorf("Function returned nothing - should not happen!")
 	}
 	if resp.Error != nil {
@@ -248,6 +249,8 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 			return nil, fmt.Errorf("%v", resp.Error)
 		}
 		tx.BlockNumber = block.Height
+
+		time.Sleep(50 * time.Millisecond) //slow down accessing the bitcoind RPC when pulling lots of transactions
 
 		answer = append(answer, tx)
 	}
