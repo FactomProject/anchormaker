@@ -152,7 +152,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 }
 
 func trimBTCFloat(f float64) float64 {
-	var tmp string = "%.8g"
+	var tmp string = "%.8f"
 	tmp = fmt.Sprintf(tmp, f)
 	answer, _ := strconv.ParseFloat(tmp, 64)
 	return answer
