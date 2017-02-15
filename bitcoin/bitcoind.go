@@ -123,9 +123,11 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 
 	raw, resp, err := bitcoind.CreateRawTransaction(usedList, outputs)
 	if err != nil {
+		fmt.Printf("Problem with tx. Inputs:\n%v\n Outputs:\n%v\n", usedList, outputs)
 		return "", err
 	}
 	if resp.Error != nil {
+		fmt.Printf("Problem with tx. Inputs:\n%v\n Outputs:\n%v\n", usedList, outputs)
 		return "", fmt.Errorf("%v", resp.Error)
 	}
 	bitcoind.WalletPassPhrase(WalletPassphrase, 10)
