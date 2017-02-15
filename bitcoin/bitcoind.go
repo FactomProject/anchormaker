@@ -104,7 +104,7 @@ func SendTransaction(inputs []bitcoind.UnspentOutput, address, data string) (str
 		}
 		var feeMultiplier float64
 		var extraBytes float64
-		extraBytes = float64(inputCount) * 146   //each additional input takes about 146 bytes
+		extraBytes = float64(inputCount-1) * 146 //each additional input takes about 146 bytes
 		feeMultiplier = (243 + extraBytes) / 243 //the normal transaction takes 243 bytes
 		if feeMultiplier > 5 {
 			fmt.Printf("Trying use a fee multiplier > 5x. Reducing to 5 from %v\n", feeMultiplier)
