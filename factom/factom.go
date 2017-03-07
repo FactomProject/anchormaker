@@ -221,18 +221,18 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			blockCount++
 		}
 		currentHeadHeight = dBlock.GetDatabaseHeight()
-	}
 
-	err = dbo.UpdateAnchorDataHead()
-	if err != nil {
-		return 0, err
-	}
+		err = dbo.UpdateAnchorDataHead()
+		if err != nil {
+			return 0, err
+		}
 
-	ps.LastFactomDBlockHeightChecked = currentHeadHeight
+		ps.LastFactomDBlockHeightChecked = currentHeadHeight
 
-	err = dbo.InsertProgramState(ps)
-	if err != nil {
-		return 0, err
+		err = dbo.InsertProgramState(ps)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return blockCount, nil
