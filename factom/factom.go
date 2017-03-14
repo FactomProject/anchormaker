@@ -101,6 +101,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		return 0, err
 	}
 	nextHeight := ps.LastFactomDBlockHeightChecked
+	fmt.Println("nextheight a", nextHeight)
 	if nextHeight > 0 {
 		//If it's 0, we don't know if we have ANY blocks. If it's more than 0, we know we have that block, so we skip it
 		nextHeight++
@@ -121,6 +122,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		fmt.Printf("Fetched dblock %v\n", dBlock.GetDatabaseHeight())
 		nextHeight = dBlock.GetDatabaseHeight() + 1
 	}
+	fmt.Println("nextheight b", nextHeight)
 
 	if len(dBlockList) == 0 {
 		return 0, nil
@@ -241,15 +243,18 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
+		fmt.Println("error checking progam state")
 		return err
 	}
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
+		fmt.Println("error fetching anchor data head")
 		return err
 	}
 	if anchorData == nil {
 		anchorData, err = dbo.FetchAnchorData(0)
 		if err != nil {
+			fmt.Println("error FetchAnchorData")
 			return err
 		}
 		if anchorData == nil {
@@ -257,18 +262,24 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 	}
+	fmt.Println("beginning to build anchors")
 	for i := 0; i < 10; {
 		//Only anchor records that haven't been anchored before
+		fmt.Println("anchorData.BitcoinRecordEntryHash", anchorData.BitcoinRecordEntryHash)
+		fmt.Println("anchorData.Bitcoin.TXID", anchorData.Bitcoin.TXID)
 		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
 			anchorRecord.KeyMR = anchorData.DBlockKeyMR
 			anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked + 1
+			fmt.Println("anchorrecord", anchorRecord)
 
 			//Bitcoin anchor
 			//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
+			fmt.Println("anchorData.Bitcoin.BlockHash", anchorData.Bitcoin.BlockHash)
 			if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "" {
+				fmt.Println("anchorData:", anchorData)
 				anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
 
 				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
@@ -276,13 +287,15 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 				anchorRecord.Bitcoin.BlockHeight = int32(anchorData.Bitcoin.BlockHeight)
 				anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
 				anchorRecord.Bitcoin.Offset = int32(anchorData.Bitcoin.Offset)
+				fmt.Println("anchorrecord2", anchorRecord)
 
 				tx, err := CreateAndSendAnchor(anchorRecord)
 				if err != nil {
+					fmt.Println("error in CreateAndSendAnchor")
 					return err
 				}
 				anchorData.BitcoinRecordEntryHash = tx
-
+				fmt.Println("the fct txid to use is", tx)
 				//Resetting AnchorRecord
 				anchorRecord.Bitcoin = nil
 			}
@@ -310,15 +323,18 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
+				fmt.Println("error in InsertAnchorData")
 				return err
 			}
 			i++
 		}
 		anchorData, err = dbo.FetchAnchorData(anchorData.DBlockHeight + 1)
 		if err != nil {
+			fmt.Println("error in FetchAnchorData")
 			return err
 		}
 		if anchorData == nil {
+			fmt.Println("error anchordata is nil")
 			break
 		}
 	}
@@ -327,7 +343,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 //Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
-	fmt.Printf("Anchoring %v\n", ar)
+	fmt.Printf("Anchoringg %v\n", ar)
 	if ar.Bitcoin != nil {
 		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
 		if err != nil {

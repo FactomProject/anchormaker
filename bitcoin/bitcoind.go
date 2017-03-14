@@ -45,7 +45,7 @@ func InitRPCClient(cfg *config.AnchorConfig) error {
 }
 
 func UpdateFee() {
-	fee, _, err := bitcoind.EstimateFee(6)
+	fee, _, err := bitcoind.EstimateFee(1)
 	if err != nil {
 		//If we have an error, revert to default
 		BTCFee = 0.001

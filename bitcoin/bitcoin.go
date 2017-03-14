@@ -82,6 +82,7 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			ad.Bitcoin.BlockHeight = tx.GetBlockNumber()
 			ad.Bitcoin.BlockHash = tx.GetBlockHash()
 			ad.Bitcoin.Offset = tx.GetTransactionIndex()
+			fmt.Println("offset found", tx.GetTransactionIndex())
 
 			fmt.Printf("Saving anchored - %v, %v\n", ad.DBlockHeight, ad.DBlockKeyMR)
 
