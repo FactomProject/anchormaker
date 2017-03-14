@@ -248,6 +248,17 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 			fmt.Printf("Error for Tx - %v\n", v.String())
 			return nil, fmt.Errorf("%v", r.Error)
 		}
+
+		gotTx, r, err := bitcoind.GetTransaction(v.TxID)
+		if err != nil {
+			fmt.Printf("GetTransaction Error for Tx - %v\n", v.String())
+			return nil, err
+		}
+		if r.Error != nil {
+			fmt.Printf("GetTransaction Error for Tx - %v\n", v.String())
+			return nil, fmt.Errorf("%v", r.Error)
+		}
+
 		var tx Transaction
 		for i, out := range fullTx.VOut {
 			if strings.Contains(out.ScriptPubKey.ASM, "OP_RETURN") {
@@ -264,6 +275,14 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 		tx.TxHash = fullTx.TxID
 		tx.BlockHash = fullTx.BlockHash
 		tx.InputAddresses = []string{v.Address}
+
+		if gotTx.BlockIndex == 0 {
+			//bitcoin API call couldn't get the index.  something is fishy, so error
+			//the default is zero, but the anchor cannot be in the coinbase, which should be index zero.
+			fmt.Printf("bitcoin Error couldn't get block index for Tx - %v\n", v.String())
+			return nil, fmt.Errorf("bitcoin Error couldn't get block index for Tx - %v\n", v.String())
+		}
+		tx.TransactionBlockIndex = gotTx.BlockIndex
 
 		block, resp, err := bitcoind.GetBlock(tx.BlockHash)
 		if err != nil {

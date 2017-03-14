@@ -8,12 +8,13 @@ import (
 )
 
 type Transaction struct {
-	InputAddresses []string
-	OPReturn       string
-	TxHash         string
-	BlockNumber    int64
-	BlockHash      string
-	OpReturnIndex  int64
+	InputAddresses        []string
+	OPReturn              string
+	TxHash                string
+	BlockNumber           int64
+	BlockHash             string
+	OpReturnIndex         int64
+	TransactionBlockIndex int64
 }
 
 func (r *Transaction) String() string {
@@ -46,8 +47,12 @@ func (t *Transaction) GetBlockHash() string {
 	return t.BlockHash
 }
 
-func (t *Transaction) GetTransactionIndex() int64 {
+func (t *Transaction) GetOpReturnIndex() int64 {
 	return t.OpReturnIndex
+}
+
+func (t *Transaction) GetTransactionIndex() int64 {
+	return t.TransactionBlockIndex
 }
 
 func prependBlockHeight(height uint32, hash []byte) ([]byte, error) {

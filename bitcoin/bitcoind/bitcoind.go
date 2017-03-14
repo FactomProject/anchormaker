@@ -541,23 +541,21 @@ func GetReceivedByAddress(data []interface{}) (*Result, error) {
 	return resp, err
 }
 
-func GetTransaction(txid string) (*Result, error) {
-	//Returns an object about the given transaction containing:
-	//"amount" : total amount of the transaction
-	//"confirmations" : number of confirmations of the transaction
-	//"txid" : the transaction ID
-	//"time" : time the transaction occurred
-	//"details" - An array of objects containing:
-	//"account"
-	//"address"
-	//"category"
-	//"amount"
+func GetTransaction(txid string) (*Transaction, *Result, error) {
 	resp, err := CallWithBasicAuth("gettransaction", []interface{}{txid})
 	if err != nil {
-		return resp, err
+		return nil, nil, err
+	}
+	if resp.Error != nil {
+		return nil, resp, err
+	}
+	answer := new(Transaction)
+	err = resp.ParseResult(answer)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return resp, err
+	return answer, resp, err
 }
 
 func GetWork(data []interface{}) (*Result, error) {
