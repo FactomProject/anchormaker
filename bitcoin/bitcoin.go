@@ -73,7 +73,7 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			if ad.BitcoinRecordHeight > 0 {
 				continue
 			}
-			if ad.Bitcoin.TXID != "" {
+			if ad.Bitcoin.BlockHash != "" {
 				continue
 			}
 
