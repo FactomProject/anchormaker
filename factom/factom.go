@@ -241,15 +241,18 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
+		fmt.Println("error checking progam state")
 		return err
 	}
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
+		fmt.Println("error fetching anchor data head")
 		return err
 	}
 	if anchorData == nil {
 		anchorData, err = dbo.FetchAnchorData(0)
 		if err != nil {
+			fmt.Println("error FetchAnchorData")
 			return err
 		}
 		if anchorData == nil {
@@ -259,7 +262,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	}
 	for i := 0; i < 10; {
 		//Only anchor records that haven't been anchored before
-		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
+		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
@@ -279,10 +282,10 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 				tx, err := CreateAndSendAnchor(anchorRecord)
 				if err != nil {
+					fmt.Println("error in CreateAndSendAnchor")
 					return err
 				}
 				anchorData.BitcoinRecordEntryHash = tx
-
 				//Resetting AnchorRecord
 				anchorRecord.Bitcoin = nil
 			}
@@ -310,15 +313,18 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
+				fmt.Println("error in InsertAnchorData")
 				return err
 			}
 			i++
 		}
 		anchorData, err = dbo.FetchAnchorData(anchorData.DBlockHeight + 1)
 		if err != nil {
+			fmt.Println("error in FetchAnchorData")
 			return err
 		}
 		if anchorData == nil {
+			fmt.Println("error anchordata is nil")
 			break
 		}
 	}
@@ -327,7 +333,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 //Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
-	fmt.Printf("Anchoring %v\n", ar)
+	fmt.Printf("Anchoring: %v\n", ar)
 	if ar.Bitcoin != nil {
 		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
 		if err != nil {

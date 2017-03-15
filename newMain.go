@@ -23,10 +23,13 @@ func main() {
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
 
-	setup.Setup(c)
+	var err error
+	err = setup.Setup(c)
+	if err != nil {
+		panic(err)
+	}
 
 	dbo := database.NewMapDB()
-	var err error
 
 	if c.App.DBType == "Map" {
 		fmt.Printf("Starting Map database\n")
@@ -67,7 +70,7 @@ func main() {
 				continue
 			}
 
-			err = AnchorLoop(dbo)
+			err = AnchorLoop(dbo, c)
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)
 				time.Sleep(10 * time.Second)
@@ -132,10 +135,13 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-func AnchorLoop(dbo *database.AnchorDatabaseOverlay) error {
-	factom.CheckFactomBalance()
-
+func AnchorLoop(dbo *database.AnchorDatabaseOverlay, c *config.AnchorConfig) error {
 	var err error
+	err = setup.CheckAndTopupBalances(c)
+	if err != nil {
+		return err
+	}
+
 	/*
 		err = ethereum.AnchorBlocksIntoEthereum(dbo)
 		if err != nil {
