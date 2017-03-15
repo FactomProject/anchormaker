@@ -13,42 +13,50 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
-func Setup(c *config.AnchorConfig) {
-	fmt.Printf("Setting the server up...\n")
-
+func CheckAndTopupBalances(c *config.AnchorConfig) error {
 	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
 	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		return
+		return err
 	}
 
 	fmt.Printf("Balances - %v, %v\n", fBalance, ecBalance)
 
 	if ecBalance < c.Factom.ECBalanceThreshold {
 		if fBalance < c.Factom.FactoidBalanceThreshold {
-			fmt.Printf("EC and F Balances are too low, can't do anything!\n")
-			return
+			return fmt.Errorf("EC and F Balances are too low, can't do anything!\n")
 		}
 		err = anchorFactom.TopupECAddress()
 		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
-			return
+			return err
 		}
+	}
+
+	return nil
+}
+
+func Setup(c *config.AnchorConfig) error {
+	fmt.Printf("Setting the server up...\n")
+
+	err := CheckAndTopupBalances(c)
+	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		return err
 	}
 
 	err = CheckAndCreateBitcoinAnchorChain()
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
-		return
+		return err
 	}
 
 	err = CheckAndCreateEthereumAnchorchain()
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
-		return
+		return err
 	}
 
 	fmt.Printf("Setup complete!\n")
+	return nil
 }
 
 func CheckAndCreateBitcoinAnchorChain() error {
