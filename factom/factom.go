@@ -267,7 +267,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 		//Only anchor records that haven't been anchored before
 		fmt.Println("anchorData.BitcoinRecordEntryHash", anchorData.BitcoinRecordEntryHash)
 		fmt.Println("anchorData.Bitcoin.TXID", anchorData.Bitcoin.TXID)
-		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.TXID != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.TXID != "") {
+		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
