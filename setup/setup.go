@@ -13,7 +13,7 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
-func CheckAndTopupBalances(c *config.AnchorConfig) error {
+func CheckAndTopupBalances(ecBalanceThreshold, fBalanceThreshold, minimumECBalance int64) error {
 	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
 	if err != nil {
 		return err
@@ -21,9 +21,13 @@ func CheckAndTopupBalances(c *config.AnchorConfig) error {
 
 	fmt.Printf("Balances - %v, %v\n", fBalance, ecBalance)
 
-	if ecBalance < c.Factom.ECBalanceThreshold {
-		if fBalance < c.Factom.FactoidBalanceThreshold {
-			return fmt.Errorf("EC and F Balances are too low, can't do anything!\n")
+	if ecBalance < ecBalanceThreshold {
+		if fBalance < fBalanceThreshold {
+			if ecBalance < minimumECBalance {
+				return fmt.Errorf("EC and F Balances are too low, can't do anything!\n")
+			} else {
+				return nil
+			}
 		}
 		err = anchorFactom.TopupECAddress()
 		if err != nil {
@@ -37,7 +41,7 @@ func CheckAndTopupBalances(c *config.AnchorConfig) error {
 func Setup(c *config.AnchorConfig) error {
 	fmt.Printf("Setting the server up...\n")
 
-	err := CheckAndTopupBalances(c)
+	err := CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, c.Factom.ECBalanceThreshold/10)
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
 		return err

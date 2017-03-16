@@ -137,7 +137,8 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 
 func AnchorLoop(dbo *database.AnchorDatabaseOverlay, c *config.AnchorConfig) error {
 	var err error
-	err = setup.CheckAndTopupBalances(c)
+
+	err = setup.CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, 100)
 	if err != nil {
 		return err
 	}
