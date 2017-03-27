@@ -293,7 +293,7 @@ func ToTransactions(txs []bitcoind.Transaction) ([]Transaction, error) {
 		}
 		tx.BlockNumber = block.Height
 
-		time.Sleep(50 * time.Millisecond) //slow down accessing the bitcoind RPC when pulling lots of transactions
+		time.Sleep(75 * time.Millisecond) //slow down accessing the bitcoind RPC when pulling lots of transactions
 
 		answer = append(answer, tx)
 	}
