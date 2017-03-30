@@ -1,7 +1,7 @@
 Anchormaker Design
 =============
 
-Anchormaker is a standalone application that is designed to run alongside factomd, factomwallet (?), btcd (?), btcwallet (?) and geth to anchor Factom Directory Blocks into Bitcoin and Ethereum.
+Anchormaker is a standalone application that is designed to run alongside factomd, bitcoind and geth to anchor Factom Directory Blocks into Bitcoin and Ethereum.
 
 Design questions
 --------
