@@ -1,9 +1,7 @@
 Setup
 =============
 
-Follow BTCD installation guide:
-
-https://github.com/FactomProject/FactomDocs/blob/master/factomFullInstall.md#install-btcd
+Install Bitcoin Core - https://github.com/bitcoin/bitcoin/releases
 
 Follow Ethereum installation guide from /ethereum
 
