@@ -19,6 +19,8 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
+var IgnoreWrongEntries bool = true
+
 var AnchorSigPublicKeys []interfaces.Verifier
 
 var ServerECKey *primitives.PrivateKey
@@ -166,9 +168,13 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						return 0, err
 					}
 					if anchorData.DBlockKeyMR != ar.KeyMR {
-						fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
-						panic(fmt.Sprintf("%v vs %v", anchorData.DBlockKeyMR, ar.KeyMR))
-						return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
+						if IgnoreWrongEntries == false {
+							fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
+							panic(fmt.Sprintf("%v vs %v", anchorData.DBlockKeyMR, ar.KeyMR))
+							return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
+						} else {
+							continue
+						}
 					}
 
 					if ar.Bitcoin != nil {
