@@ -173,6 +173,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 							panic(fmt.Sprintf("%v vs %v", anchorData.DBlockKeyMR, ar.KeyMR))
 							return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
 						} else {
+							fmt.Printf("Bad AR: Height %v has KeyMR %v, found anchorrecord %v\n", ar.DBHeight, anchorData.DBlockKeyMR, ar.KeyMR)
 							continue
 						}
 					}
