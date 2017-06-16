@@ -1,9 +1,8 @@
 package bitcoin_test
 
 import (
-	"testing"
-
 	. "github.com/FactomProject/anchormaker/bitcoin"
+	"testing"
 )
 
 func TestTest(t *testing.T) {
