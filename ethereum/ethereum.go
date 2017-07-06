@@ -177,7 +177,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	}
 
 	for i := 0; i < 10; {
-		done, skip, err := AnchorBlockByHeight(height)
+		done, skip, err := AnchorBlockByHeight(dbo, height)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 //returns done when we're done anchoring
 //returns skip if we can skip anchoring this block
 func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
-	ad, err = dbo.FetchAnchorData(height)
+	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
 		done = true
 		skip = false
@@ -251,7 +251,7 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 
 	fmt.Printf("tx - %v\n", tx)
 
-	txHash, err := EthereumAPI.PersonalSignAndSendTransaction(tx, WalletPassword)
+	txHash, err := EthereumAPI.PersonalSendTransaction(tx, WalletPassword)
 
 	if err != nil {
 		fmt.Printf("err - %v", err)
