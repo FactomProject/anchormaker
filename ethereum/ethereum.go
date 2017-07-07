@@ -13,9 +13,9 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
-var WalletAddress string = "0x4da6BAe6689f60e30B575Ca7D3B075605135ee86"
-var WalletPassword string = "pass"
-var ContractAddress string = "0x7e79c06E18Af0464382c2cd089A20dc49F2EBf86"
+var WalletAddress string = "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
+var WalletPassword string = "password"
+var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
 var GasPrice string = "0x10FFFF"
 var IgnoreWrongEntries bool = false
 

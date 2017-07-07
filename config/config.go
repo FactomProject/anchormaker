@@ -112,9 +112,9 @@ RPCPass								= "pass"
 ; Ethereum settings
 ; ------------------------------------------------------------------------------
 [ethereum]
-WalletAddress						= "0x4da6BAe6689f60e30B575Ca7D3B075605135ee86"
-WalletPassword						= "pass"
-ContractAddress 					= "0x7e79c06E18Af0464382c2cd089A20dc49F2EBf86"
+WalletAddress						= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
+WalletPassword						= "password"
+ContractAddress 					= "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
 GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
 IgnoreWrongEntries					= true
