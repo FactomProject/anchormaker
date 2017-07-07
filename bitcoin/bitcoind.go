@@ -1,8 +1,10 @@
 package bitcoin
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +15,6 @@ import (
 	//"github.com/FactomProject/factomd/common/interfaces"
 	//"github.com/FactomProject/factomd/common/primitives"
 	//"github.com/FactomProject/go-bip32"
-	"bufio"
-	"os"
 )
 
 var BTCAddress string = "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
@@ -47,10 +47,24 @@ func InitRPCClient(cfg *config.AnchorConfig) error {
 }
 
 func UpdateFee() {
-
 	f, err := os.Open("satoshifee.txt")
 	if err != nil {
-		panic(err)
+		fee, _, err := bitcoind.EstimateFee(6)
+		if err != nil {
+			//If we have an error, revert to default
+			BTCFee = 0.001
+			return
+		}
+		if fee > 0 {
+			//If bitcoind gives us an estimate, use it
+			//Our transactions are ~243bytes, estimatefee lists price per 1kB
+			//So we divide by ~4
+			BTCFee = fee * 0.243
+			return
+		}
+		//If bitcoind can't estimate the fee, revert to default
+		BTCFee = 0.001
+		return
 	}
 	defer f.Close()
 
@@ -69,24 +83,6 @@ func UpdateFee() {
 	feeInSat := normalTxSize * desiredSatPerByte
 	feeInBtc := float64(feeInSat) / 100000000
 	BTCFee = feeInBtc
-
-	/*
-		fee, _, err := bitcoind.EstimateFee(6)
-		if err != nil {
-			//If we have an error, revert to default
-			BTCFee = 0.001
-			return
-		}
-		if fee > 0 {
-			//If bitcoind gives us an estimate, use it
-			//Our transactions are ~243bytes, estimatefee lists price per 1kB
-			//So we divide by ~4
-			BTCFee = fee * 0.243
-			return
-		}
-		//If bitcoind can't estimate the fee, revert to default
-		BTCFee = 0.001
-	*/
 }
 
 // SendRawTransactionToBTC is the main function used to anchor factom
