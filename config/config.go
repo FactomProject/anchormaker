@@ -114,7 +114,7 @@ RPCPass								= "pass"
 [ethereum]
 WalletAddress						= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 WalletPassword						= "password"
-ContractAddress 					= "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
+ContractAddress 					= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
 IgnoreWrongEntries					= true
