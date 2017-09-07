@@ -12,6 +12,10 @@ contract FactomAnchor {
     mapping(uint256 => Anchor) public anchors;
     string[] public debug;
 
+    /*********************************Events********************************/
+    event Debug(string info);
+    event AnchorMade(uint256 height, uint256 merkleroot);
+
         //Contract initialization
         function FactomAnchor() {
             creator = msg.sender;
@@ -19,28 +23,22 @@ contract FactomAnchor {
         
         /*******************************Modifiers*******************************/
 
-        modifier onlyCrator {
-            //only crator can perform some actions until it disables itself
-            if (msg.sender != creator) {
-                Debug("Not creator");
-                throw;
-            }
-            Debug("Creator");
+        modifier onlyCreator {
+            //only creator can perform some actions until it disables itself
+            require(msg.sender == creator);
             _;
         }
         
-        /*********************************Events********************************/
-        
-        
-        function Debug(string message) {
+        function debugEntry(string message) {
             var id = debug.length++;
             debug[id] = message;
+            Debug(message);
         }
         
         /*******************************Functions*******************************/
         //Set Factom anchors
-        function setAnchor(uint256 blockNumber, uint256 keyMR) onlyCrator {
-            Debug("setAnchor");
+        function setAnchor(uint256 blockNumber, uint256 keyMR) onlyCreator {
             anchors[blockNumber].KeyMR = keyMR;
+            AnchorMade(blockNumber, keyMR);
         }
 }
