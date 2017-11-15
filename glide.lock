@@ -21,7 +21,7 @@ imports:
   subpackages:
   - edwards25519
 - name: github.com/FactomProject/EthereumAPI
-  version: 4308398404925fdd3c6c7ebbe1d1ea7be2fb8b47
+  version: 2dc1493f10a505f80287188261b3fe7e64a299c5
 - name: github.com/FactomProject/factoid
   version: 3ee9763f86849036723d1b059216e08a6d34b184
   subpackages:
