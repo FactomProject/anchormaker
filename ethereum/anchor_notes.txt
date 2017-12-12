@@ -1,0 +1,197 @@
+install geth-linux-amd64-1.7.2
+download  https://github.com/ethereum/solidity/releases
+sudo cp ~/Downloads/solc-static-linux /usr/local/eth/solc
+
+
+
+to start geth:
+
+navigate to directory with `anchorCompiled.js`
+geth --verbosity 3  --testnet --rpc --rpcapi "personal"    console 2>> /tmp/eth.log
+It is best to run this in a screen terminal.
+
+
+
+some diagnostics from the console:
+net.peerCount
+admin.peers
+
+To send ether tokens:
+web3.eth.getBalance("0xb7655ba7a4bc79035f9eac9b8e34564df88902e7")
+web3.personal.unlockAccount("0xb7655ba7a4bc79035f9eac9b8e34564df88902e7", "passowrd", 10000);
+eth.sendTransaction({from:eth.coinbase, to:eth.accounts[0], value: web3.toWei(0.05, "ether")})
+
+or without default gas price:
+web3.eth.gasPrice
+eth.sendTransaction({from:eth.coinbase, to:eth.accounts[0], value: web3.toWei(0.05, "ether"), gasPrice: 5000000000})
+eth.sendTransaction({from:eth.coinbase, to:eth.accounts[0], value: web3.toWei(0.05, "ether"), gasPrice: 100100000, gas:22000})
+
+
+
+__________
+
+Bootstraping a new anchor smart contract.
+
+1. compile the smart contract.  This should only be done if the existing `anchorCompiled.js` has problems or new features are needed.  creating a new contract ignores all the previous state that would have been anchored.  In the directory with the anchorContract.sol solidity contract.
+
+echo "var anchorOutput=`solc --optimize --combined-json abi,bin,interface anchorContract.sol`" > anchorCompiled.js
+
+2. Generate a private key offline and back it up.  The private key is 32 bytes long.
+3. Start geth and import the private key to the Geth wallet via the console
+with this private key run 0xdb8a08597d0dfa5cc4884117546c2c6f069c34ce8a2eba1015920f12f1088a1b
+
+web3.personal.importRawKey("db8a08597d0dfa5cc4884117546c2c6f069c34ce8a2eba1015920f12f1088a1b","aStrongPassword")
+> "0x7b2d985524c3fadc0f939342fc95edcaf7163616"
+4. send some eth to this public address.  This example has some eth in account [1].
+
+web3.personal.unlockAccount(eth.accounts[1], "passowrd", 10000);
+eth.sendTransaction({from:eth.accounts[1], to:"0x7b2d985524c3fadc0f939342fc95edcaf7163616", value: web3.toWei(0.4, "ether")})
+
+5. Import the compiled contract into the console
+
+loadScript('anchorCompiled.js')
+var anchorContractAbi = anchorOutput.contracts["anchorContract.sol:FactomAnchor"].abi;
+var anchorContract = eth.contract(JSON.parse(anchorContractAbi))
+var anchorBinCode = "0x" + anchorOutput.contracts['anchorContract.sol:FactomAnchor'].bin
+
+6. Create a new instance of the contract on the blockchain
+
+web3.personal.unlockAccount("0x7b2d985524c3fadc0f939342fc95edcaf7163616", "aStrongPassword", 10000);
+var deployTransationObject = { from: "0x7b2d985524c3fadc0f939342fc95edcaf7163616", data: anchorBinCode, gas: 1000000 };
+var anchorInstance = anchorContract.new(deployTransationObject)
+
+wait for it to be mined in the blockchain.
+https://ropsten.etherscan.io/address/0x7b2d985524c3fadc0f939342fc95edcaf7163616
+
+see all pending transactions globally
+eth.getBlock("pending", true).transactions
+
+see how many transactions of ours are outstanding 
+eth.pendingTransactions.length
+https://ethereum.stackexchange.com/questions/16269/geth-transactions-stuck-in-pending-resend-fails
+
+
+after it is mined, you can get the contract address.
+eth.getTransactionReceipt(anchorInstance.transactionHash).contractAddress;
+> "0x9e17f59a0f77D05C8C367015267E010509Cc75A1"
+
+7. Save this contract address.  It will be used to 
+
+8. Connect the anchor interface to the contract which was created
+
+var anchor = anchorContract.at(eth.getTransactionReceipt(anchorInstance.transactionHash).contractAddress)
+
+9. test that the contract can be queried
+
+anchor.getAnchor(15)
+
+should return 0
+
+10. to close the program, type 'exit' into the console
+
+__________
+
+Resuming After Starting 
+
+1. Start Geth program
+navigate to directory with `anchorCompiled.js`
+geth --verbosity 3  --testnet --rpc --rpcapi "personal"    console 2>> /tmp/eth.log
+It is best to run this in a screen terminal.
+
+
+2. If starting fresh and the private key has not been imported.  if just restarting, this step is not needed.
+
+web3.personal.importRawKey("db8a08597d0dfa5cc4884117546c2c6f069c34ce8a2eba1015920f12f1088a1b","aStrongPassword")
+> "0x7b2d985524c3fadc0f939342fc95edcaf7163616"
+
+to check if it worked run 
+eth.accounts
+
+3. load the anchor smart contract ABI file
+
+loadScript('anchorCompiled.js')
+var anchor = eth.contract(JSON.parse(anchorOutput.contracts["anchorContract.sol:FactomAnchor"].abi)).at('0x9e17f59a0f77D05C8C367015267E010509Cc75A1')
+
+
+4. test that the contract can be queried
+
+anchor.getAnchor(15)
+
+5. If needed, start watching for events emitted from the contract
+
+
+var events = anchor.allEvents();
+events.watch(function(error, event){
+    if (error) {
+        console.log("Error: " + error);
+    } else {
+        if (event.event == "AnchorMade") {
+            height = event.args.height
+            mr = event.args.merkleroot
+            console.log(event.event + " height " + height + " merkleroot: " + web3.toHex(mr))
+        } else {
+            console.log(event.event + ": " + JSON.stringify(event.args));
+        }
+    }
+});
+
+
+
+__________
+
+Debugging the Contract
+
+When debugging you might want to send a transaction to update the smart contract.  Generally this is not safe unless you are changing it to a value it is already set to.  The setHeight function is safe to call when setting to the same height getHeight is currently reading from (assuming there are no pending transactions for this contract eth.pendingTransactions.length)  This is also useful for rewinding history if blocks at a height too high were anchored for some reason.
+
+For this example, we have fresh deployed a contract whcih has a height set to zero.  We can run a transaction which sets it to zero.
+
+1. start geth and load it up using directions from "Resuming After Starting"
+
+2. check what the height is currently set to
+
+anchor.getHeight()
+> 0
+
+3. unlock the wallet
+
+web3.personal.unlockAccount("0x7b2d985524c3fadc0f939342fc95edcaf7163616", "aStrongPassword", 10000);
+
+4. now make a transction which overrides the height to zero
+
+anchor.setHeight.sendTransaction(0, {from: "0x7b2d985524c3fadc0f939342fc95edcaf7163616", gas: 200000,})
+
+to see if it is still pending, run
+eth.pendingTransactions.length
+or
+eth.getBlock("pending", true).transactions
+
+
+
+5. A more serious problem would be if we needed to write or rewrite an anchor at a specific height.  This is the command that would do that:
+
+anchor.setAnchor.sendTransaction(11, "0x1111d4bbe7ea6efc31cf7bfc45192378454cf4e1908c56a35e6a64456a691751", {from: "0x7b2d985524c3fadc0f939342fc95edcaf7163616", gas: 200000,})
+
+6. To see the anchor value at a specific height run:
+
+web3.toHex(anchor.getAnchor(1))
+
+
+
+
+__________
+
+Decommissioning/upgrading the Contract
+
+When there is a fear of private key comprimize or if factom wants to roll over to a new contract, we still would want to reference all the height:anchor pairs created by this contract.  After we make sure that the overall height and all the height:anchor values are correct, we can lock ourselves (and everyone else) out from ever changing this state.  This makes it safe for a later contract to reference the state of this contract and we don't have to worry about a key leak from altering the state we are relying on.  The next version of the contract would not need to re-anchor all the previous blocks to bootstrap the state.
+
+This contract can be frozen, but never unfrozen, so be careful with this command.
+
+
+anchor.freeze.sendTransaction({from: "0x7b2d985524c3fadc0f939342fc95edcaf7163616", gas: 200000,})
+
+
+To see if the contract is frozen, run:
+
+anchor.checkFrozen()
+
+if it returns true, it can not be updated in the future.
