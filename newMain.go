@@ -118,14 +118,15 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 			return err
 		}
 		fmt.Printf("txCount - %v\n", txCount)
-
+/*
 		btcCount, err := bitcoin.SynchronizeBitcoinData(dbo)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("btcCount - %v\n", btcCount)
 
-		if (blockCount + txCount + btcCount) == 0 {
+		if (blockCount + txCount + btcCount) == 0 {*/
+		if (blockCount + txCount) == 0 {
 			//if (blockCount + btcCount) == 0 {
 			//if (blockCount + txCount) == 0 {
 			break

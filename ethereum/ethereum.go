@@ -30,6 +30,8 @@ func LoadConfig(c *config.AnchorConfig) {
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	EthereumAPI.EtherscanTestNet = c.Ethereum.TestNet
+	EthereumAPI.EtherscanTestNetName = c.Ethereum.TestNetName
+	EthereumAPI.EtherscanAPIKeyToken = c.Ethereum.EtherscanAPIKey
 
 	//TODO: load ServerAddress into EthereumAPI
 }

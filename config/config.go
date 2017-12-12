@@ -49,6 +49,8 @@ type AnchorConfig struct {
 		ServerAddress      string
 		IgnoreWrongEntries bool
 		TestNet            bool
+		TestNetName	       string
+		EtherscanAPIKey    string
 	}
 	Log struct {
 		LogPath  string
@@ -119,6 +121,8 @@ GasPrice							= "0x10FFFF"
 ServerAddress						= "localhost:8545"
 IgnoreWrongEntries					= true
 TestNet								= true
+TestNetName							= "ropsten"
+EtherscanAPIKey				    	= "FAKE1RF4562ASGATJQRDFAGADGQERHQERH"
 
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none
