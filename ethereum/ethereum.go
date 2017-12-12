@@ -17,6 +17,7 @@ var WalletAddress string = "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 var WalletPassword string = "password"
 var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
 var GasLimit string = "200000"
+var GasPrice string = "10000000000" //10 gwei
 var IgnoreWrongEntries bool = false
 
 //"0xbbcc0c80"
@@ -27,6 +28,7 @@ func LoadConfig(c *config.AnchorConfig) {
 	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
 	GasLimit = c.Ethereum.GasLimit
+	GasPrice = c.Ethereum.GasPrice
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	EthereumAPI.EtherscanTestNet = c.Ethereum.TestNet
@@ -240,9 +242,14 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 }
 
 func AnchorBlock(height int64, keyMR string) (string, error) {
-	gasint, err := strconv.ParseInt(GasLimit, 10, 0)
+	gasInt, err := strconv.ParseInt(GasLimit, 10, 0)
 	if err != nil {
 		fmt.Printf("error parsing GasLimit in config file - %v", err)
+		return "", err
+	}
+	gasPriceInt, err := strconv.ParseInt(GasPrice, 10, 0)
+	if err != nil {
+		fmt.Printf("error parsing GasPrice in config file - %v", err)
 		return "", err
 	}
 
@@ -255,7 +262,8 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	tx.From = WalletAddress
 	tx.To = ContractAddress
 
-	tx.Gas = EthereumAPI.IntToQuantity(gasint)
+	tx.Gas = EthereumAPI.IntToQuantity(gasInt)
+	tx.GasPrice = EthereumAPI.IntToQuantity(gasPriceInt)
 	tx.Data = data
 
 	fmt.Printf("tx - %v\n", tx)
