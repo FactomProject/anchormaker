@@ -240,6 +240,12 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 }
 
 func AnchorBlock(height int64, keyMR string) (string, error) {
+	gasint, err := strconv.ParseInt(GasLimit, 10, 0)
+	if err != nil {
+		fmt.Printf("error parsing GasLimit in config file - %v", err)
+		return "", err
+	}
+
 	data := "0x"
 	data += EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)")
 	data += EthereumAPI.IntToData(height)
@@ -248,7 +254,8 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	tx := new(EthereumAPI.TransactionObject)
 	tx.From = WalletAddress
 	tx.To = ContractAddress
-	tx.Gas = GasLimit
+
+	tx.Gas = EthereumAPI.IntToQuantity(gasint)
 	tx.Data = data
 
 	fmt.Printf("tx - %v\n", tx)
