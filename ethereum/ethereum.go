@@ -16,7 +16,7 @@ import (
 var WalletAddress string = "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 var WalletPassword string = "password"
 var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
-var GasPrice string = "0x10FFFF"
+var GasLimit string = "200000"
 var IgnoreWrongEntries bool = false
 
 //"0xbbcc0c80"
@@ -26,7 +26,7 @@ func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
 	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
-	GasPrice = c.Ethereum.GasPrice
+	GasLimit = c.Ethereum.GasLimit
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	EthereumAPI.EtherscanTestNet = c.Ethereum.TestNet
@@ -248,7 +248,7 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	tx := new(EthereumAPI.TransactionObject)
 	tx.From = WalletAddress
 	tx.To = ContractAddress
-	tx.Gas = GasPrice
+	tx.Gas = GasLimit
 	tx.Data = data
 
 	fmt.Printf("tx - %v\n", tx)
