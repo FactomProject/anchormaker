@@ -64,6 +64,7 @@ func (db *AnchorDatabaseOverlay) InsertAnchorData(data *AnchorData, isHead bool)
 	batch = append(batch, interfaces.Record{AnchorDataStr, height.Bytes(), data})
 	if isHead {
 		//Chain head consists only of records anchored in both Bitcoin and Ethereum
+		// ^ note bitcoin disabled on the ethereum branch, so the head is now only with ethereum
 		batch = append(batch, interfaces.Record{CHAIN_HEAD, data.GetChainID().Bytes(), height})
 	}
 

@@ -47,11 +47,11 @@ func Setup(c *config.AnchorConfig) error {
 		return err
 	}
 
-	err = CheckAndCreateBitcoinAnchorChain()
+	/*err = CheckAndCreateBitcoinAnchorChain()
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
 		return err
-	}
+	}*/
 
 	err = CheckAndCreateEthereumAnchorchain()
 	if err != nil {

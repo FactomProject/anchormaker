@@ -40,11 +40,11 @@ var FirstBitcoinAnchorChainEntryHash interfaces.IHash
 var FirstEthereumAnchorChainEntryHash interfaces.IHash
 
 func init() {
-	e := CreateFirstBitcoinAnchorEntry()
+	/*e := CreateFirstBitcoinAnchorEntry()
 	BitcoinAnchorChainID = e.ChainID
-	FirstBitcoinAnchorChainEntryHash = e.GetHash()
+	FirstBitcoinAnchorChainEntryHash = e.GetHash()*/
 
-	e = CreateFirstEthereumAnchorEntry()
+	e := CreateFirstEthereumAnchorEntry()
 	EthereumAnchorChainID = e.ChainID
 	FirstEthereumAnchorChainEntryHash = e.GetHash()
 }
@@ -132,7 +132,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
 			//Looking for Bitcoin and Ethereum anchors
-			if v.GetChainID().String() == BitcoinAnchorChainID.String() || v.GetChainID().String() == EthereumAnchorChainID.String() {
+			if /*v.GetChainID().String() == BitcoinAnchorChainID.String() ||*/ v.GetChainID().String() == EthereumAnchorChainID.String() {
 				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
@@ -143,7 +143,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						continue
 					}
 					//fmt.Printf("\t%v\n", eh.String())
-					if eh.String() == FirstBitcoinAnchorChainEntryHash.String() || eh.String() == FirstEthereumAnchorChainEntryHash.String() {
+					if /*eh.String() == FirstBitcoinAnchorChainEntryHash.String() ||*/ eh.String() == FirstEthereumAnchorChainEntryHash.String() {
 						continue
 					}
 					//fmt.Printf("Fetching %v\n", eh.String())
@@ -178,7 +178,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						}
 					}
 
-					if ar.Bitcoin != nil {
+					/*if ar.Bitcoin != nil {
 						fmt.Printf("Found Bitcoin Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Bitcoin.Address = ar.Bitcoin.Address
 						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
@@ -189,7 +189,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
 						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.BitcoinRecordEntryHash = eh.String()
-					}
+					}*/
 					if ar.Ethereum != nil {
 						fmt.Printf("Found Ethereum Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Ethereum.Address = ar.Ethereum.Address
@@ -278,7 +278,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 
 			//Bitcoin anchor
 			//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
-			if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "" {
+			/*if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "" {
 				anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
 
 				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
@@ -295,7 +295,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 				anchorData.BitcoinRecordEntryHash = tx
 				//Resetting AnchorRecord
 				anchorRecord.Bitcoin = nil
-			}
+			}*/
 
 			//Ethereum anchor
 			//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
@@ -341,13 +341,13 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 //Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Anchoring: %v\n", ar)
-	if ar.Bitcoin != nil {
+	/*if ar.Bitcoin != nil {
 		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
 		if err != nil {
 			return "", err
 		}
 		return txID, nil
-	}
+	}*/
 	if ar.Ethereum != nil {
 		txID, err := submitEntryToAnchorChain(ar, EthereumAnchorChainID)
 		if err != nil {

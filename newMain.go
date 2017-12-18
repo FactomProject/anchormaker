@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/FactomProject/anchormaker/api"
-	"github.com/FactomProject/anchormaker/bitcoin"
+	//disable btc "github.com/FactomProject/anchormaker/bitcoin"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
 	"github.com/FactomProject/anchormaker/ethereum"
@@ -18,7 +18,7 @@ import (
 func main() {
 	c := config.ReadConfig()
 
-	bitcoin.LoadConfig(c)
+	//disable btc bitcoin.LoadConfig(c)
 	ethereum.LoadConfig(c)
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
@@ -118,8 +118,8 @@ func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
 			return err
 		}
 		fmt.Printf("txCount - %v\n", txCount)
-/*
-		btcCount, err := bitcoin.SynchronizeBitcoinData(dbo)
+		//disable btc
+		/*btcCount, err := bitcoin.SynchronizeBitcoinData(dbo)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func AnchorLoop(dbo *database.AnchorDatabaseOverlay, c *config.AnchorConfig) err
 		return err
 	}
 
-	err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
+	//disable btc err = bitcoin.AnchorBlocksIntoBitcoin(dbo)
 	if err != nil {
 		return err
 	}
