@@ -41,6 +41,16 @@ func LoadConfig(c *config.AnchorConfig) {
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	txCount := 0
 	fmt.Println("SynchronizeEthereumData")
+
+	syncresponse, err := EthereumAPI.EthSyncing()
+	if err != nil {
+		fmt.Println("Is geth run with --rpcapi \"*,eth,*\"")
+		return 0, err
+	}
+	if syncresponse.Syncing != false { //if our local node is still catching up, don't make any anchors in ethereum
+		return 0, fmt.Errorf("geth node is not caught up to the blockchain, waiting. local height: %v blockchain: %v ", syncresponse.CurrentBlock, syncresponse.HighestBlock)
+	}
+
 	for {
 		ps, err := dbo.FetchProgramState()
 		if err != nil {
