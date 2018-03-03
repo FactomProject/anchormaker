@@ -42,6 +42,15 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	txCount := 0
 	fmt.Println("SynchronizeEthereumData")
 
+	peercount, err := EthereumAPI.NetPeerCount()
+	if err != nil {
+		fmt.Println("Is geth run with --rpcapi \"*,net,*\"")
+		return 0, err
+	}
+	if int(*peercount) == 0 { //if our local node is not connected to any nodes, don't make any anchors in ethereum
+		return 0, fmt.Errorf("geth node is not connected to any peers, waiting 10 sec.")
+	}
+
 	syncresponse, err := EthereumAPI.EthSyncing()
 	if err != nil {
 		fmt.Println("Is geth run with --rpcapi \"*,eth,*\"")
