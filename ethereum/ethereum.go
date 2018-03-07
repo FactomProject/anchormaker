@@ -19,6 +19,7 @@ var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
 var GasLimit string = "200000"
 var GasPrice string = "10000000000" //10 gwei
 var IgnoreWrongEntries bool = false
+var just_connected_to_net = true
 
 //"0xbbcc0c80"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
