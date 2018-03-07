@@ -42,22 +42,12 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	txCount := 0
 	fmt.Println("SynchronizeEthereumData")
 
-	peercount, err := EthereumAPI.NetPeerCount()
-	if err != nil {
-		fmt.Println("Is geth run with --rpcapi \"*,net,*\"")
-		return 0, err
-	}
-	if int(*peercount) == 0 { //if our local node is not connected to any nodes, don't make any anchors in ethereum
-		return 0, fmt.Errorf("geth node is not connected to any peers, waiting 10 sec.")
-	}
+	synced, err := CheckIfEthSynced()
 
-	syncresponse, err := EthereumAPI.EthSyncing()
 	if err != nil {
-		fmt.Println("Is geth run with --rpcapi \"*,eth,*\"")
 		return 0, err
-	}
-	if syncresponse.Syncing != false { //if our local node is still catching up, don't make any anchors in ethereum
-		return 0, fmt.Errorf("geth node is not caught up to the blockchain, waiting. local height: %v blockchain: %v ", syncresponse.CurrentBlock, syncresponse.HighestBlock)
+	} else if synced == false {
+		return 0, fmt.Errorf("eth node not synced, waiting.")
 	}
 
 	for {
@@ -296,6 +286,66 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	fmt.Printf("txHash - %v\n", txHash)
 
 	return txHash, nil
+}
+
+func CheckIfEthSynced() (bool, error) {
+	//check if the eth node is connected
+	peercount, err := EthereumAPI.NetPeerCount()
+	if err != nil {
+		fmt.Println("Is geth run with --rpcapi \"*,net,*\"")
+		return false, err
+	}
+	if int(*peercount) == 0 { //if our local node is not connected to any nodes, don't make any anchors in ethereum
+		just_connected_to_net = true
+		return false, fmt.Errorf("geth node is not connected to any peers, waiting 10 sec.")
+	}
+
+	if just_connected_to_net == true {
+		fmt.Println("Geth has just connected to the first peer. Waiting 30s to discover new blocks")
+		time.Sleep(30 * time.Second)
+		just_connected_to_net = false
+	}
+
+	syncresponse, err := EthereumAPI.EthSyncing()
+	if err != nil {
+		fmt.Println("Is geth run with --rpcapi \"*,eth,*\"")
+		return false, err
+	}
+	if syncresponse.HighestBlock != "" {
+
+		highestblk, err := strconv.ParseInt(syncresponse.HighestBlock, 0, 64)
+		if err != nil {
+			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for highestblock, got %v", syncresponse.HighestBlock)
+		}
+
+		currentblk, err := strconv.ParseInt(syncresponse.CurrentBlock, 0, 64)
+		if err != nil {
+			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for currentblock, got %v", syncresponse.CurrentBlock)
+		}
+
+		if highestblk > currentblk { //if our local node is still catching up, don't make any anchors in ethereum
+			return false, fmt.Errorf("geth node is not caught up to the blockchain, waiting 10 sec. local height: %v blockchain: %v Delta: %v", currentblk, highestblk, (highestblk - currentblk))
+		}
+	}
+
+	//we might have gotten here with the eth node having connections, but still having a stale blockchain.
+	//we check the timestamp of the latest block to see if it is too far behind
+
+	currentTime := time.Now().Unix()
+	highestBlockTimeStr, err := EthereumAPI.EthGetBlockByNumber("latest", true)
+	if err != nil {
+		return false, fmt.Errorf("Error parsing geth rpc. Expecting a block info, got %v. %v", highestBlockTimeStr, err)
+	}
+	highestBlockTime, err := strconv.ParseInt(highestBlockTimeStr.Timestamp, 0, 64)
+	if err != nil {
+		return false, fmt.Errorf("Error parsing geth rpc. Expecting a block time, got %v. %v", highestBlockTimeStr.Timestamp, err)
+	}
+	maxAge := 2 * 60 * 60                                    //give a 2 hour tolerance for a block to be 2 hours behind, due to miner vagaries. 60 * 60 = 60 sec * 60 min
+	if int(currentTime) > (maxAge + int(highestBlockTime)) { //if our local node is still catching up, don't make any anchors in ethereum
+		return false, fmt.Errorf("Blockchain tip is more than 2 hours old. timenow %v, blocktime %v, delta: %v ", currentTime, highestBlockTime, (currentTime - highestBlockTime))
+	}
+
+	return true, nil
 }
 
 func CheckBalance() (int64, error) {
