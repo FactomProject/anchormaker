@@ -103,6 +103,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						continue
 					}
 					if ad.EthereumRecordHeight > 0 {
+						fmt.Printf("ad.EthereumRecordHeight > 0   %v\n", ad.EthereumRecordHeight)
 						continue
 					}
 					if ad.Ethereum.TXID != "" {
@@ -115,7 +116,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					ad.Ethereum.BlockHash = strings.ToLower(tx.BlockHash)
 					ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
 
-					err = dbo.InsertAnchorData(ad, false)
+					err = dbo.InsertAnchorData(ad, true)
 					if err != nil {
 						return 0, err
 					}
@@ -161,8 +162,13 @@ func ParseInput(input string) (dBlockHeight uint32, keyMR string) {
 			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
 			keyMR = input[:64]
 			return
+		} else {
+			fmt.Println("Input function prefix was incorrect.  Instead of %v found: %v", FunctionPrefix, input[:10])
 		}
+
 	}
+	fmt.Println("Parsing of transaction input was too long or short. %v", len(input))
+	fmt.Println("Input was: %v", input)
 	return 0, ""
 }
 
@@ -289,6 +295,10 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	return txHash, nil
 }
 
+func CheckBalance() (int64, error) {
+	return EthereumAPI.EthGetBalance(WalletAddress, EthereumAPI.Latest)
+}
+
 func CheckIfEthSynced() (bool, error) {
 	//check if the eth node is connected
 	peercount, err := EthereumAPI.NetPeerCount()
@@ -347,10 +357,6 @@ func CheckIfEthSynced() (bool, error) {
 	}
 
 	return true, nil
-}
-
-func CheckBalance() (int64, error) {
-	return EthereumAPI.EthGetBalance(WalletAddress, EthereumAPI.Latest)
 }
 
 /*

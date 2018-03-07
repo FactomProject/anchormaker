@@ -97,6 +97,7 @@ func CheckFactomBalance() (int64, int64, error) {
 
 //Returns number of blocks synchronized
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
+	fmt.Println("SynchronizeFactomData")
 	blockCount := 0
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
@@ -107,15 +108,18 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		//If it's 0, we don't know if we have ANY blocks. If it's more than 0, we know we have that block, so we skip it
 		nextHeight++
 	}
+	fmt.Printf("nextheight %v\n", nextHeight)
 
 	dBlockList := []interfaces.IDirectoryBlock{}
 
 	for {
 		dBlock, err := api.GetDBlockByHeight(nextHeight)
 		if err != nil {
+			fmt.Printf("err, api.GetDBlockByHeight\n")
 			return 0, err
 		}
 		if dBlock == nil {
+			fmt.Printf("dBlock == nil\n")
 			break
 		}
 
@@ -132,8 +136,8 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
 			//Looking for Bitcoin and Ethereum anchors
-			if /*v.GetChainID().String() == BitcoinAnchorChainID.String() ||*/ v.GetChainID().String() == EthereumAnchorChainID.String() {
-				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
+			if v.GetChainID().String() == EthereumAnchorChainID.String() {
+				fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
 					return 0, err
@@ -142,16 +146,16 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if eh.IsMinuteMarker() == true {
 						continue
 					}
-					//fmt.Printf("\t%v\n", eh.String())
-					if /*eh.String() == FirstBitcoinAnchorChainEntryHash.String() ||*/ eh.String() == FirstEthereumAnchorChainEntryHash.String() {
+					fmt.Printf("\t%v\n", eh.String())
+					if eh.String() == FirstEthereumAnchorChainEntryHash.String() {
 						continue
 					}
-					//fmt.Printf("Fetching %v\n", eh.String())
+					fmt.Printf("Fetching %v\n", eh.String())
 					entry, err := api.GetEntry(eh.String())
 					if err != nil {
 						return 0, err
 					}
-					//fmt.Printf("Entry - %v\n", entry)
+					fmt.Printf("Entry - %v\n", entry)
 					ar, valid, err := anchor.UnmarshalAndValidateAnchorEntryAnyVersion(entry, AnchorSigPublicKeys)
 					if err != nil {
 						return 0, err
@@ -159,9 +163,9 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if valid == false {
 						fmt.Printf("Invalid anchor - %v\n", entry)
 						continue
-						//return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
+						return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
 					}
-					//fmt.Printf("anchor - %v\n", ar)
+					fmt.Printf("anchor - %v\n", ar)
 
 					anchorData, err := dbo.FetchAnchorData(ar.DBHeight)
 					if err != nil {
@@ -199,7 +203,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.Ethereum.Offset = ar.Ethereum.Offset
 
 						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
-						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
+						fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.EthereumRecordEntryHash = eh.String()
 					}
 
@@ -269,7 +273,8 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	}
 	for i := 0; i < 10; {
 		//Only anchor records that haven't been anchored before
-		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
+		// btc disable if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
+		if (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
