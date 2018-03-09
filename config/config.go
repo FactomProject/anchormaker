@@ -50,7 +50,7 @@ type AnchorConfig struct {
 		ServerAddress      string
 		IgnoreWrongEntries bool
 		TestNet            bool
-		TestNetName	       string
+		TestNetName        string
 		EtherscanAPIKey    string
 	}
 	Log struct {

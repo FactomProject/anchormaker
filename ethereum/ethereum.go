@@ -208,6 +208,23 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
+func ReadKeymrAtHeight(height int64) (string, error) {
+	data := "0x"
+	data += EthereumAPI.StringToMethodID("getAnchor(uint256)")
+	data += EthereumAPI.IntToData(height)
+
+	callinfo := new(EthereumAPI.TransactionObject)
+	callinfo.To = ContractAddress
+	callinfo.Data = data
+
+	keymr, err := EthereumAPI.EthCall(callinfo, "latest")
+	if err != nil {
+		fmt.Printf("err - %v", err)
+		return "", err
+	}
+	return keymr, nil
+}
+
 //returns done when we're done anchoring
 //returns skip if we can skip anchoring this block
 func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
