@@ -5,6 +5,7 @@ import ()
 import (
 	"bytes"
 	"encoding/gob"
+	"sync"
 
 	"github.com/FactomProject/factomd/common/primitives"
 )
@@ -15,10 +16,22 @@ type ProgramStateBase struct {
 	LastBitcoinBlockChecked       string
 	LastEthereumBlockChecked      int64
 	LastFactomDBlockHeightChecked uint32
+	//a map holding pending eth transactions
+	//outer map is keyed by eth nonce, as that is the atomic/serial unit on ethereum
+	//inner map is an index starting at zero
+	PendingTxs map[int64]map[int64]*ProgramStatePendingTxInfo
+}
+type ProgramStatePendingTxInfo struct {
+	EthTxID        string // the transactionid as it can be found in the eth blockchain
+	EthTxGasPrice  int64  // the eth/gas that this transaction is offering
+	FactomDBheight int64  // the factom directory block height that this transaction updates
+	FactomDBkeyMR  string // the factom directory block key merkle root that this transaction sets
+	TxTime         int64  // the unix time that this transaction was created and broadcast into the eth p2p network
 }
 
 type ProgramState struct {
 	ProgramStateBase
+	ProgramStateMutex sync.Mutex
 }
 
 func (e *ProgramState) JSONByte() ([]byte, error) {

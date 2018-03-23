@@ -56,6 +56,9 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+		ps.ProgramStateMutex.Lock()
+		defer ps.ProgramStateMutex.Unlock()
 
 		txs, err := EthereumAPI.EtherscanTxListWithStartBlock(ContractAddress, ps.LastEthereumBlockChecked)
 		if err != nil {
@@ -167,6 +170,20 @@ func ParseInput(input string) (dBlockHeight uint32, keyMR string) {
 }
 
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
+
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		return err
+	}
+	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	ps.ProgramStateMutex.Lock()
+	defer ps.ProgramStateMutex.Unlock()
+
+	err = dbo.InsertProgramState(ps)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("AnchorBlocksIntoEthereum")
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {

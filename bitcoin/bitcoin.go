@@ -27,6 +27,9 @@ func SynchronizeBitcoinData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+		ps.ProgramStateMutex.Lock()
+		defer ps.ProgramStateMutex.Unlock()
 		fmt.Printf("LastBitcoinBlockChecked - %v\n", ps.LastBitcoinBlockChecked)
 
 		txs, newBlock, err := ListBitcoinTransactionsSinceBlock(ps.LastBitcoinBlockChecked)
@@ -122,6 +125,9 @@ func AnchorBlocksIntoBitcoin(dbo *database.AnchorDatabaseOverlay) error {
 	if err != nil {
 		return err
 	}
+	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	ps.ProgramStateMutex.Lock()
+	defer ps.ProgramStateMutex.Unlock()
 	//We first anchor the newest block before proceeding to anchor older blocks
 	_, _, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
 	if err != nil {

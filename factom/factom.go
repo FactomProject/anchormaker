@@ -102,6 +102,9 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	ps.ProgramStateMutex.Lock()
+	defer ps.ProgramStateMutex.Unlock()
 	nextHeight := ps.LastFactomDBlockHeightChecked
 	if nextHeight > 0 {
 		//If it's 0, we don't know if we have ANY blocks. If it's more than 0, we know we have that block, so we skip it
@@ -251,6 +254,9 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 		fmt.Println("error checking progam state")
 		return err
 	}
+	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	ps.ProgramStateMutex.Lock()
+	defer ps.ProgramStateMutex.Unlock()
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		fmt.Println("error fetching anchor data head")
