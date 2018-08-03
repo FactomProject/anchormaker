@@ -18,7 +18,7 @@ contract FactomAnchor {
     event AnchoringFrozen(uint256 height);  
 
     //Contract initialization
-    function FactomAnchor() public {
+    constructor() public {
         creator = msg.sender;
         maxHeight = 0;
         frozen = false;
@@ -39,16 +39,16 @@ contract FactomAnchor {
             anchors[blockNumber].KeyMR = keyMR;
             if (blockNumber >= maxHeight) {
                 maxHeight = blockNumber;
-                AnchorHeightSet(maxHeight);
+                emit AnchorHeightSet(maxHeight);
             }
-            AnchorMade(blockNumber, keyMR);
+            emit AnchorMade(blockNumber, keyMR);
         }
     }
     
     function setHeight(uint256 newHeight) public onlyCreator {
         if (!frozen) {
             maxHeight = newHeight;
-            AnchorHeightSet(maxHeight);
+            emit AnchorHeightSet(maxHeight);
         }
     }
     
@@ -64,7 +64,7 @@ contract FactomAnchor {
     //stop future updates
     function freeze() public onlyCreator {
         frozen = true;
-        AnchoringFrozen(maxHeight);
+        emit AnchoringFrozen(maxHeight);
     }
     
     //checks if state is stopped from being updated later

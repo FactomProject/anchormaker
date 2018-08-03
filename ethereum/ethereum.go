@@ -197,7 +197,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		height = ad.DBlockHeight + 1
 	}
 
-	ps, err := dbo.FetchProgramState()
+	ps, err = dbo.FetchProgramState()
 	if err != nil {
 		return err
 	}
