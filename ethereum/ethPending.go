@@ -96,6 +96,7 @@ func HighestPendingGasPriceAtNonce(ps *database.ProgramState, nonceHeight int64)
 	return numOlderTxs, highestGasPrice, nil
 }
 
+/*
 //the number of transactions that a particular address has made that are confirmed
 //determines the nonce of the next confirmable transaction.
 func getConfirmedCount() (int64, error) {
@@ -114,3 +115,4 @@ func getConfirmedCount() (int64, error) {
 	}
 	return keymr, nil
 }
+*/
