@@ -48,10 +48,10 @@ type AnchorConfig struct {
 		GasLimit           string
 		GasPrice           string
 		ServerAddress      string
+		GethIPCURL         string
 		IgnoreWrongEntries bool
 		TestNet            bool
 		TestNetName        string
-		EtherscanAPIKey    string
 	}
 	Log struct {
 		LogPath  string
@@ -117,14 +117,14 @@ RPCPass								= "pass"
 [ethereum]
 WalletAddress						= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 WalletPassword						= "password"
-ContractAddress 					= "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
+ContractAddress 					= "0xd1932fe27273e0dc1a2fa5257c75811fd5555a1d"
 GasLimit							= "200000"
 GasPrice							= "10000000000"
 ServerAddress						= "localhost:8545"
+GethIPCURL							= "/home/$USER/.ethereum/testnet/geth.ipc"
 IgnoreWrongEntries					= true
 TestNet								= true
 TestNetName							= "ropsten"
-EtherscanAPIKey				    	= "FAKE1RF4562ASGATJQRDFAGADGQERHQERH"
 
 ; ------------------------------------------------------------------------------
 ; logLevel - allowed values are: debug, info, notice, warning, error, critical, alert, emergency and none

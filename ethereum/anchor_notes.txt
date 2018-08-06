@@ -195,3 +195,10 @@ To see if the contract is frozen, run:
 anchor.checkFrozen()
 
 if it returns true, it can not be updated in the future.
+
+When updating the solidity code, you will need to recompile/deploy it using the steps shown in the "Bootstraping a new anchor smart contract." section here.
+Then update the contract address in the anchormaker.conf file.
+You will also need to run the following command in the ethereum subdirectory:
+go generate ethereum.go
+
+That will generate a new factomAnchor.go file that is used within the anchormaker program to interact with the new on-chain contract.

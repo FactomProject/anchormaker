@@ -1,3 +1,4 @@
+//go:generate abigen --sol anchorContract.sol --pkg ethereum --out factomAnchor.go
 package ethereum
 
 import (
@@ -9,6 +10,9 @@ import (
 	"github.com/FactomProject/EthereumAPI"
 	"github.com/FactomProject/anchormaker/config"
 	"github.com/FactomProject/anchormaker/database"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
@@ -21,6 +25,9 @@ var GasPrice string = "10000000000" //10 gwei
 var IgnoreWrongEntries bool = false
 var just_connected_to_net = true
 
+var conn *ethclient.Client
+var factomAnchor *FactomAnchor
+
 //"0xbbcc0c80"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
@@ -32,11 +39,20 @@ func LoadConfig(c *config.AnchorConfig) {
 	GasPrice = c.Ethereum.GasPrice
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
-	EthereumAPI.EtherscanTestNet = c.Ethereum.TestNet
-	EthereumAPI.EtherscanTestNetName = c.Ethereum.TestNetName
-	EthereumAPI.EtherscanAPIKeyToken = c.Ethereum.EtherscanAPIKey
+	var err error
+	// Create IPC based RPC connection to the local node
+	conn, err = ethclient.Dial(c.Ethereum.GethIPCURL)
+	if err != nil {
+		fmt.Printf("Failed to connect to ethereum node over IPC: %v", err)
+		panic(err)
+	}
 
-	//TODO: load ServerAddress into EthereumAPI
+	// Get an instance of the deployed smart contract
+	factomAnchor, err = NewFactomAnchor(common.HexToAddress(ContractAddress), conn)
+	if err != nil {
+		fmt.Printf("Failed to initialize FactomAnchor contract: %v", err)
+		panic(err)
+	}
 }
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
@@ -51,97 +67,75 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		return 0, fmt.Errorf("eth node not synced, waiting.")
 	}
 
-	for {
-		ps, err := dbo.FetchProgramState()
+	ps, err := dbo.FetchProgramState()
+	if err != nil {
+		return 0, err
+	}
+	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	ps.ProgramStateMutex.Lock()
+	defer ps.ProgramStateMutex.Unlock()
+
+	var lastBlock int64 = 0
+
+	// Use an event filter to quickly get all anchors set since ps.LastEthereumBlockChecked
+	filterOpts := &bind.FilterOpts{}
+	filterOpts.Start = uint64(ps.LastEthereumBlockChecked)
+	anchorEvents, err := factomAnchor.FilterAnchorMade(filterOpts)
+	if err != nil {
+		fmt.Printf("Failed to FilterAnchorMade: %v", err)
+		return 0, err
+	}
+	for hasNext := anchorEvents.Next(); hasNext; hasNext = anchorEvents.Next() {
+		txCount++
+		event := anchorEvents.Event
+		if int64(event.Raw.BlockNumber) > lastBlock {
+			lastBlock = int64(event.Raw.BlockNumber)
+		}
+
+		dbHeight := event.Height
+		merkleRoot := fmt.Sprintf("%064x", event.Merkleroot)
+
+		// Check if we have a tx for this dbHeight in the database already
+		ad, err := dbo.FetchAnchorData(uint32(dbHeight.Uint64()))
 		if err != nil {
 			return 0, err
 		}
-		//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
-		ps.ProgramStateMutex.Lock()
-		defer ps.ProgramStateMutex.Unlock()
-
-		txs, err := EthereumAPI.EtherscanTxListWithStartBlock(ContractAddress, ps.LastEthereumBlockChecked)
-		if err != nil {
-			return 0, err
-		}
-
-		if len(txs) == 0 {
-			break
-		}
-
-		var lastBlock int64 = 0
-
-		fmt.Printf("Ethereum Tx count - %v\n", len(txs))
-
-		for _, tx := range txs {
-			txCount++
-			if Atoi(tx.BlockNumber) > lastBlock {
-				lastBlock = Atoi(tx.BlockNumber)
-			}
-			if strings.ToLower(tx.From) != WalletAddress {
-				fmt.Printf("Not from our address - %v vs %v\n", tx.From, WalletAddress)
-				//ignoring transactions that are not ours
+		if ad == nil {
+			if IgnoreWrongEntries == false {
+				return 0, fmt.Errorf("We have anchored block from outside of our DB")
+			} else {
 				continue
 			}
-			//makign sure the input is of correct length
-			if len(tx.Input) == 138 {
-				//making sure the right function is called
-				if tx.Input[:10] == FunctionPrefix {
-					dbHeight, keyMR := ParseInput(tx.Input)
-
-					ad, err := dbo.FetchAnchorData(dbHeight)
-					if err != nil {
-						return 0, err
-					}
-					if ad == nil {
-						if IgnoreWrongEntries == false {
-							return 0, fmt.Errorf("We have anchored block from outside of our DB")
-						} else {
-							continue
-						}
-					}
-					if ad.DBlockKeyMR != keyMR {
-						fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, keyMR)
-						//return fmt.Errorf("We have anchored invalid KeyMR")
-						continue
-					}
-					if ad.EthereumRecordHeight > 0 {
-						continue
-					}
-					if ad.Ethereum.TXID != "" {
-						continue
-					}
-
-					ad.Ethereum.Address = strings.ToLower(tx.From)
-					ad.Ethereum.TXID = strings.ToLower(tx.Hash)
-					ad.Ethereum.BlockHeight = Atoi(tx.BlockNumber)
-					ad.Ethereum.BlockHash = strings.ToLower(tx.BlockHash)
-					ad.Ethereum.Offset = Atoi(tx.TransactionIndex)
-
-					err = dbo.InsertAnchorData(ad, false)
-					if err != nil {
-						return 0, err
-					}
-					fmt.Printf("Block %v is already anchored!\n", dbHeight)
-				} else {
-					fmt.Printf("Wrong prefix - %v\n", tx.Input[:10])
-				}
-			} else {
-				fmt.Printf("Wrong len - %v\n", len(tx.Input))
-			}
 		}
-		fmt.Printf("LastBlock - %v\n", lastBlock)
-
-		if len(txs) < 1000 {
-			//we have checked all transactions from the last block, so we can safely step over it
-			ps.LastEthereumBlockChecked = lastBlock + 1
-		} else {
-			ps.LastEthereumBlockChecked = lastBlock
+		if ad.DBlockKeyMR != merkleRoot {
+			fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, merkleRoot)
+			continue
 		}
-		err = dbo.InsertProgramState(ps)
+		if ad.EthereumRecordHeight > 0 {
+			continue
+		}
+
+		// We have a tx listed in the database already, but now we know it has been mined.
+		// Update the AnchorData to reflect this.
+		ad.Ethereum.Address = strings.ToLower(WalletAddress)
+		ad.Ethereum.TXID = strings.ToLower(event.Raw.TxHash.String())
+		ad.Ethereum.BlockHeight = int64(event.Raw.BlockNumber)
+		ad.Ethereum.BlockHash = strings.ToLower(event.Raw.BlockHash.String())
+		ad.Ethereum.Offset = int64(event.Raw.TxIndex)
+
+		err = dbo.InsertAnchorData(ad, false)
 		if err != nil {
 			return 0, err
 		}
+		fmt.Printf("Block %v is already anchored!\n", dbHeight)
+	}
+
+	// Update the block to start at for the next synchronization loop
+	ps.LastEthereumBlockChecked = lastBlock + 1
+
+	err = dbo.InsertProgramState(ps)
+	if err != nil {
+		return 0, err
 	}
 
 	return txCount, nil
