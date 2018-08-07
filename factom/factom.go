@@ -95,8 +95,9 @@ func CheckFactomBalance() (int64, int64, error) {
 	return fBalance, ecBalance, nil
 }
 
-//Returns number of blocks synchronized
+// Returns number of blocks synchronized
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
+	fmt.Println("SynchronizeFactomData")
 	blockCount := 0
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
@@ -194,7 +195,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.BitcoinRecordEntryHash = eh.String()
 					}*/
 					if ar.Ethereum != nil {
-						fmt.Printf("Found Ethereum Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
+						fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Ethereum.Address = ar.Ethereum.Address
 						anchorData.Ethereum.TXID = ar.Ethereum.TXID
 						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
@@ -215,7 +216,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			}
 		}
 
-		//Updating new directory blocks
+		// Updating new directory blocks
 		anchorData, err := dbo.FetchAnchorData(dBlock.GetDatabaseHeight())
 		if err != nil {
 			return 0, err
@@ -249,12 +250,13 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 }
 
 func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
+	fmt.Println("SaveAnchorsIntoFactom")
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		fmt.Println("error checking progam state")
 		return err
 	}
-	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	// This mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
 	ps.ProgramStateMutex.Lock()
 	defer ps.ProgramStateMutex.Unlock()
 	anchorData, err := dbo.FetchAnchorDataHead()
@@ -273,8 +275,11 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			return nil
 		}
 	}
+
+	// Try to submit as many as 10 anchor records/receipts into Factom
 	for i := 0; i < 10; {
-		//Only anchor records that haven't been anchored before
+		// Only anchor records that haven't been anchored before
+		// Check that the anchor tx was confirmed on other blockchain, and that we haven't recorded that tx's receipt in Factom yet
 		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
@@ -344,9 +349,9 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-//Takes care of sending the entry to the Factom network, returns txID
+// Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
-	fmt.Printf("Anchoring: %v\n", ar)
+	fmt.Printf("Sending anchor record to Factom: %v\n", ar)
 	/*if ar.Bitcoin != nil {
 		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
 		if err != nil {
@@ -364,7 +369,7 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	return "", nil
 }
 
-//Construct the entry and submit it to the server
+// Construct the entry and submit it to the server
 func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) (string, error) {
 	entry, err := CreateAnchorEntry(aRecord, chainID, ServerPrivKey)
 	if err != nil {

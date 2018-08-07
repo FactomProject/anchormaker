@@ -43,35 +43,34 @@ func LoadConfig(c *config.AnchorConfig) {
 	// Create IPC based RPC connection to the local node
 	conn, err = ethclient.Dial(c.Ethereum.GethIPCURL)
 	if err != nil {
-		fmt.Printf("Failed to connect to ethereum node over IPC: %v", err)
+		fmt.Printf("Failed to connect to ethereum node over IPC: %v\n", err)
 		panic(err)
 	}
 
 	// Get an instance of the deployed smart contract
 	factomAnchor, err = NewFactomAnchor(common.HexToAddress(ContractAddress), conn)
 	if err != nil {
-		fmt.Printf("Failed to initialize FactomAnchor contract: %v", err)
+		fmt.Printf("Failed to initialize FactomAnchor contract: %v\n", err)
 		panic(err)
 	}
 }
 
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
-	txCount := 0
 	fmt.Println("SynchronizeEthereumData")
+	txCount := 0
 
 	synced, err := CheckIfEthSynced()
-
 	if err != nil {
 		return 0, err
 	} else if synced == false {
-		return 0, fmt.Errorf("eth node not synced, waiting.")
+		return 0, fmt.Errorf("eth node not synced, waiting")
 	}
 
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		return 0, err
 	}
-	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	// This mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
 	ps.ProgramStateMutex.Lock()
 	defer ps.ProgramStateMutex.Unlock()
 
@@ -82,8 +81,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	filterOpts.Start = uint64(ps.LastEthereumBlockChecked)
 	anchorEvents, err := factomAnchor.FilterAnchorMade(filterOpts)
 	if err != nil {
-		fmt.Printf("Failed to FilterAnchorMade: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("failed to make anchor filter: %v", err)
 	}
 	for hasNext := anchorEvents.Next(); hasNext; hasNext = anchorEvents.Next() {
 		txCount++
@@ -127,7 +125,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		fmt.Printf("Block %v is already anchored!\n", dbHeight)
+		fmt.Printf("DBlock %v is already anchored in Ethereum!\n", dbHeight)
 	}
 
 	// Update the block to start at for the next synchronization loop
@@ -164,12 +162,12 @@ func ParseInput(input string) (dBlockHeight uint32, keyMR string) {
 }
 
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
-
+	fmt.Println("AnchorBlocksIntoEthereum")
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		return err
 	}
-	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
+	// This mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
 	ps.ProgramStateMutex.Lock()
 	defer ps.ProgramStateMutex.Unlock()
 
@@ -178,7 +176,6 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 
-	fmt.Println("AnchorBlocksIntoEthereum")
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		return err
@@ -195,7 +192,8 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	if err != nil {
 		return err
 	}
-	//We first anchor the newest block before proceeding to anchor older blocks
+
+	// We first anchor the newest block before proceeding to anchor older blocks
 	_, _, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
 	if err != nil {
 		return err
@@ -236,8 +234,8 @@ func ReadKeymrAtHeight(height int64) (string, error) {
 	return keymr, nil
 }
 
-//returns done when we're done anchoring
-//returns skip if we can skip anchoring this block
+// returns done when we're done anchoring
+// returns skip if we can skip anchoring this block
 func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
 	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
@@ -256,7 +254,6 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 		return
 	}
 
-	//fmt.Printf("Anchoring %v\n", height)
 	time.Sleep(5 * time.Second)
 	tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR)
 	if err != nil {
@@ -264,7 +261,7 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 		skip = true
 		return
 	}
-	fmt.Printf("Anchored %v\n", height)
+	fmt.Printf("Submitted Ethereum Anchor for DBlock %v\n", height)
 
 	ad.Ethereum.TXID = tx
 	err = dbo.InsertAnchorData(ad, false)
@@ -304,21 +301,21 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	tx.GasPrice = EthereumAPI.IntToQuantity(gasPriceInt)
 	tx.Data = data
 
-	fmt.Printf("tx - %v\n", tx)
+	fmt.Printf("Ethereum tx: %v\n", tx)
 
 	txHash, err := EthereumAPI.PersonalSendTransaction(tx, WalletPassword)
 
 	if err != nil {
-		fmt.Printf("err - %v", err)
+		fmt.Printf("failed to submit tx: %v\n", err)
 		return "", err
 	}
-	fmt.Printf("txHash - %v\n", txHash)
+	fmt.Printf("Tx submitted with txHash: %v\n", txHash)
 
 	return txHash, nil
 }
 
 func CheckIfEthSynced() (bool, error) {
-	//check if the eth node is connected
+	// Check if the eth node is connected
 	peercount, err := EthereumAPI.NetPeerCount()
 	if err != nil {
 		fmt.Println("Is geth run with --rpcapi \"*,net,*\"")
@@ -341,7 +338,6 @@ func CheckIfEthSynced() (bool, error) {
 		return false, err
 	}
 	if syncresponse.HighestBlock != "" {
-
 		highestblk, err := strconv.ParseInt(syncresponse.HighestBlock, 0, 64)
 		if err != nil {
 			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for highestblock, got %v", syncresponse.HighestBlock)
@@ -352,14 +348,14 @@ func CheckIfEthSynced() (bool, error) {
 			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for currentblock, got %v", syncresponse.CurrentBlock)
 		}
 
-		if highestblk > currentblk { //if our local node is still catching up, don't make any anchors in ethereum
+		// If our local node is still catching up, don't submit any new anchors to Ethereum
+		if highestblk > currentblk {
 			return false, fmt.Errorf("geth node is not caught up to the blockchain, waiting 10 sec. local height: %v blockchain: %v Delta: %v", currentblk, highestblk, (highestblk - currentblk))
 		}
 	}
 
-	//we might have gotten here with the eth node having connections, but still having a stale blockchain.
-	//we check the timestamp of the latest block to see if it is too far behind
-
+	// We might have gotten here with the eth node having connections, but still having a stale blockchain.
+	// So check the timestamp of the latest block to see if it is too far behind
 	currentTime := time.Now().Unix()
 	highestBlockTimeStr, err := EthereumAPI.EthGetBlockByNumber("latest", true)
 	if err != nil {
@@ -369,8 +365,10 @@ func CheckIfEthSynced() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Error parsing geth rpc. Expecting a block time, got %v. %v", highestBlockTimeStr.Timestamp, err)
 	}
-	maxAge := 2 * 60 * 60                                    //give a 2 hour tolerance for a block to be 2 hours behind, due to miner vagaries. 60 * 60 = 60 sec * 60 min
-	if int(currentTime) > (maxAge + int(highestBlockTime)) { //if our local node is still catching up, don't make any anchors in ethereum
+	// Give a 2 hour tolerance for a block to be 2 hours behind, due to miner vagaries. 2 hr * 60 sec * 60 min
+	// If our local node is still catching up, don't submit any new anchors to Ethereum
+	maxAge := 2 * 60 * 60
+	if int(currentTime) > (maxAge + int(highestBlockTime)) {
 		return false, fmt.Errorf("Blockchain tip is more than 2 hours old. timenow %v, blocktime %v, delta: %v ", currentTime, highestBlockTime, (currentTime - highestBlockTime))
 	}
 
