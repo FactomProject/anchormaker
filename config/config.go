@@ -42,16 +42,16 @@ type AnchorConfig struct {
 		RPCPass          string
 	}
 	Ethereum struct {
-		WalletAddress      string
-		WalletPassword     string
-		ContractAddress    string
-		GasLimit           string
-		GasPrice           string
-		ServerAddress      string
-		GethIPCURL         string
-		IgnoreWrongEntries bool
-		TestNet            bool
-		TestNetName        string
+		WalletAddress        string
+		WalletPassword       string
+		ContractAddress      string
+		GasLimit             string
+		ServerAddress        string
+		GethIPCURL           string
+		EthGasStationAddress string
+		IgnoreWrongEntries   bool
+		TestNet              bool
+		TestNetName          string
 	}
 	Log struct {
 		LogPath  string
@@ -119,9 +119,9 @@ WalletAddress						= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 WalletPassword						= "password"
 ContractAddress 					= "0xd1932fe27273e0dc1a2fa5257c75811fd5555a1d"
 GasLimit							= "200000"
-GasPrice							= "10000000000"
 ServerAddress						= "localhost:8545"
 GethIPCURL							= "/home/$USER/.ethereum/testnet/geth.ipc"
+EthGasStationAddress				= "https://ethgasstation.info/json/ethgasAPI.json"
 IgnoreWrongEntries					= true
 TestNet								= true
 TestNetName							= "ropsten"

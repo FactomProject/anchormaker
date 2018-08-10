@@ -13,6 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"math/big"
+	"net/http"
+	"io/ioutil"
+	"encoding/json"
 )
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
@@ -21,7 +25,7 @@ var WalletAddress string = "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
 var WalletPassword string = "password"
 var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
 var GasLimit string = "200000"
-var GasPrice string = "10000000000" //10 gwei
+var EthGasStationAddress string
 var IgnoreWrongEntries bool = false
 var just_connected_to_net = true
 
@@ -36,7 +40,7 @@ func LoadConfig(c *config.AnchorConfig) {
 	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
 	GasLimit = c.Ethereum.GasLimit
-	GasPrice = c.Ethereum.GasPrice
+	EthGasStationAddress = c.Ethereum.EthGasStationAddress
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	var err error
@@ -282,10 +286,14 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 		fmt.Printf("error parsing GasLimit in config file - %v", err)
 		return "", err
 	}
-	gasPriceInt, err := strconv.ParseInt(GasPrice, 10, 0)
-	if err != nil {
-		fmt.Printf("error parsing GasPrice in config file - %v", err)
-		return "", err
+
+	var gasPrice int64
+	if gasPriceEstimates, err := GetGasPriceEstimates(EthGasStationAddress); err != nil {
+		fmt.Printf("Failed to get gas price estimates from %v\n", EthGasStationAddress)
+		fmt.Println("Defaulting gas price to 40 GWei")
+		gasPrice = 40000000000
+	} else {
+		gasPrice = gasPriceEstimates.Fast.Int64()
 	}
 
 	data := "0x"
@@ -298,7 +306,7 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	tx.To = ContractAddress
 
 	tx.Gas = EthereumAPI.IntToQuantity(gasInt)
-	tx.GasPrice = EthereumAPI.IntToQuantity(gasPriceInt)
+	tx.GasPrice = EthereumAPI.IntToQuantity(gasPrice)
 	tx.Data = data
 
 	fmt.Printf("Ethereum tx: %v\n", tx)
@@ -377,6 +385,77 @@ func CheckIfEthSynced() (bool, error) {
 
 func CheckBalance() (int64, error) {
 	return EthereumAPI.EthGetBalance(WalletAddress, EthereumAPI.Latest)
+}
+
+// GasPriceEstimates holds multiple price estimates (in Wei) and their corresponding wait times (in minutes)
+type GasPriceEstimates struct {
+	BlockNumber uint64
+	BlockTime float64
+	Speed float64
+	SafeLow *big.Int
+	SafeLowWait float64
+	Average *big.Int
+	AverageWait float64
+	Fast *big.Int
+	FastWait float64
+	Fastest *big.Int
+	FastestWait float64
+}
+
+// GetGasPriceEstimates polls the ethgasstation API at the given URL and returns its most recent estimates
+func GetGasPriceEstimates(url string) (*GasPriceEstimates, error) {
+	type rawEstimate struct {
+		BlockNumber uint64 `json:"blockNum"`
+		BlockTime float64 `json:"block_time"`
+		Speed float64 `json:"speed"`
+		SafeLow float64 `json:"safeLow"`
+		SafeLowWait float64 `json:"safeLowWait"`
+		Average float64 `json:"average"`
+		AverageWait float64 `json:"avgWait"`
+		Fast float64 `json:"fast"`
+		FastWait float64 `json:"fastWait"`
+		Fastest float64 `json:"fastest"`
+		FastestWait float64 `json:"fastestWait"`
+	}
+
+	client := http.Client{
+		Timeout: time.Second * 2,
+	}
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	raw := rawEstimate{}
+	err = json.Unmarshal(body, &raw)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert weird GWei * 10 units to wei, for usability
+	estimates := GasPriceEstimates{
+		BlockNumber: raw.BlockNumber,
+		BlockTime: raw.BlockTime,
+		Speed: raw.Speed,
+		SafeLow: big.NewInt(int64(raw.SafeLow * 1e8)),
+		SafeLowWait: raw.SafeLowWait,
+		Average: big.NewInt(int64(raw.Average * 1e8)),
+		AverageWait: raw.AverageWait,
+		Fast: big.NewInt(int64(raw.Fast * 1e8)),
+		FastWait: raw.FastWait,
+		Fastest: big.NewInt(int64(raw.Fastest * 1e8)),
+		FastestWait: raw.FastestWait,
+	}
+	return &estimates, nil
 }
 
 /*
