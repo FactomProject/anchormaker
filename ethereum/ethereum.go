@@ -21,13 +21,13 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
-var WalletAddress string = "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
-var WalletPassword string = "password"
-var ContractAddress string = "0x9e0C6b5f502BD293D7661bE1b2bE0147dcaF0010"
-var GasLimit string = "200000"
+var WalletAddress string
+var WalletPassword string
+var ContractAddress string
+var GasLimit string
 var EthGasStationAddress string
-var IgnoreWrongEntries bool = false
-var just_connected_to_net = true
+var IgnoreWrongEntries bool
+var justConnectedToNet = true
 
 var conn *ethclient.Client
 var factomAnchor *FactomAnchor
@@ -141,28 +141,6 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	}
 
 	return txCount, nil
-}
-
-func Atoi(s string) int64 {
-	i, _ := strconv.ParseInt(s, 0, 64)
-	return i
-}
-
-func AtoiHex(s string) int64 {
-	i, _ := strconv.ParseInt(s, 16, 64)
-	return i
-}
-
-func ParseInput(input string) (dBlockHeight uint32, keyMR string) {
-	if len(input) == 138 {
-		if input[:10] == FunctionPrefix {
-			input = input[10:]
-			dBlockHeight, input = uint32(AtoiHex(input[:64])), input[64:]
-			keyMR = input[:64]
-			return
-		}
-	}
-	return 0, ""
 }
 
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
@@ -324,41 +302,41 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 
 func CheckIfEthSynced() (bool, error) {
 	// Check if the eth node is connected
-	peercount, err := EthereumAPI.NetPeerCount()
+	peerCount, err := EthereumAPI.NetPeerCount()
 	if err != nil {
 		fmt.Println("Is geth run with --rpcapi \"*,net,*\"")
 		return false, err
 	}
-	if int(*peercount) == 0 { //if our local node is not connected to any nodes, don't make any anchors in ethereum
-		just_connected_to_net = true
+	if int(*peerCount) == 0 { //if our local node is not connected to any nodes, don't make any anchors in ethereum
+		justConnectedToNet = true
 		return false, fmt.Errorf("geth node is not connected to any peers, waiting 10 sec.")
 	}
 
-	if just_connected_to_net == true {
+	if justConnectedToNet == true {
 		fmt.Println("Geth has just connected to the first peer. Waiting 30s to discover new blocks")
 		time.Sleep(30 * time.Second)
-		just_connected_to_net = false
+		justConnectedToNet = false
 	}
 
-	syncresponse, err := EthereumAPI.EthSyncing()
+	syncResponse, err := EthereumAPI.EthSyncing()
 	if err != nil {
 		fmt.Println("Is geth run with --rpcapi \"*,eth,*\"")
 		return false, err
 	}
-	if syncresponse.HighestBlock != "" {
-		highestblk, err := strconv.ParseInt(syncresponse.HighestBlock, 0, 64)
+	if syncResponse.HighestBlock != "" {
+		highestBlk, err := strconv.ParseInt(syncResponse.HighestBlock, 0, 64)
 		if err != nil {
-			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for highestblock, got %v", syncresponse.HighestBlock)
+			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for highestblock, got %v", syncResponse.HighestBlock)
 		}
 
-		currentblk, err := strconv.ParseInt(syncresponse.CurrentBlock, 0, 64)
+		currentBlk, err := strconv.ParseInt(syncResponse.CurrentBlock, 0, 64)
 		if err != nil {
-			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for currentblock, got %v", syncresponse.CurrentBlock)
+			return false, fmt.Errorf("Error parsing geth rpc. Expecting a hex number for currentblock, got %v", syncResponse.CurrentBlock)
 		}
 
 		// If our local node is still catching up, don't submit any new anchors to Ethereum
-		if highestblk > currentblk {
-			return false, fmt.Errorf("geth node is not caught up to the blockchain, waiting 10 sec. local height: %v blockchain: %v Delta: %v", currentblk, highestblk, (highestblk - currentblk))
+		if highestBlk > currentBlk {
+			return false, fmt.Errorf("geth node is not caught up to the blockchain, waiting 10 sec. local height: %v blockchain: %v Delta: %v", currentBlk, highestBlk, (highestBlk - currentBlk))
 		}
 	}
 
@@ -457,64 +435,3 @@ func GetGasPriceEstimates(url string) (*GasPriceEstimates, error) {
 	}
 	return &estimates, nil
 }
-
-/*
-func main() {
-	ver, err := EthereumAPI.EthProtocolVersion()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Ver - %v\n", ver)
-
-	block, err := EthereumAPI.EthGetBlockByNumber("0x1", true)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Block - %v\n", block)
-
-	peers, err := EthereumAPI.NetPeerCount()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("peers - %v\n", peers)
-}
-
-
-func GetAnchorData(height int64) (string, string, error) {
-	data := "0x"
-	data += EthereumAPI.StringToMethodID("anchors(uint256)")
-	data += EthereumAPI.IntToData(height)
-
-	tx := new(EthereumAPI.TransactionObject)
-	tx.From = WalletAddress
-	tx.To = ContractAddress
-	tx.Gas = "0x10FFFF"
-	tx.Data = data
-
-	txData, err := EthereumAPI.EthCall(tx, "latest")
-	if err != nil {
-		fmt.Printf("err - %v", err)
-		return "", "", err
-	}
-	fmt.Printf("txData - %v\n", txData)
-	return txData[2:66], txData[66:], nil
-}
-
-func GetTransaction(txHash string) {
-	data, err := EthereumAPI.EthGetTransactionByHash(txHash)
-	if err != nil {
-		fmt.Printf("err - %v", err)
-		return // "", "", err
-	}
-	fmt.Printf("data - %v\n", data)
-}
-
-func GetContractTransactions() {
-	data, err := EthereumAPI.EtherscanTxList(ContractAddress)
-	if err != nil {
-		fmt.Printf("err - %v", err)
-		return // "", "", err
-	}
-	fmt.Printf("data - %v\n", data)
-}
-*/
