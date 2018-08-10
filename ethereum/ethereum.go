@@ -199,23 +199,6 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-func ReadKeymrAtHeight(height int64) (string, error) {
-	data := "0x"
-	data += EthereumAPI.StringToMethodID("getAnchor(uint256)")
-	data += EthereumAPI.IntToData(height)
-
-	callinfo := new(EthereumAPI.TransactionObject)
-	callinfo.To = ContractAddress
-	callinfo.Data = data
-
-	keymr, err := EthereumAPI.EthCall(callinfo, "latest")
-	if err != nil {
-		fmt.Printf("err - %v", err)
-		return "", err
-	}
-	return keymr, nil
-}
-
 // returns done when we're done anchoring
 // returns skip if we can skip anchoring this block
 func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
@@ -298,6 +281,19 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	fmt.Printf("Tx submitted with txHash: %v\n", txHash)
 
 	return txHash, nil
+}
+
+// GetKeymrAtHeight returns the merkle root at a given DBlock height as a hex string
+func GetKeymrAtHeight(height int64) (string, error) {
+	opts := bind.CallOpts{}
+	opts.Pending = false
+
+	keymr, err := factomAnchor.GetAnchor(&opts, big.NewInt(height))
+	if err != nil {
+		fmt.Printf("error getting keymr: %v", err)
+		return "", err
+	}
+	return fmt.Sprintf("%064x", keymr), nil
 }
 
 func CheckIfEthSynced() (bool, error) {
