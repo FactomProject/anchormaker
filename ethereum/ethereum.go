@@ -17,6 +17,9 @@ import (
 	"net/http"
 	"io/ioutil"
 	"encoding/json"
+	"github.com/FactomProject/factomd/common/interfaces"
+	"github.com/FactomProject/factomd/common/primitives"
+	"github.com/FactomProject/anchormaker/api"
 )
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
@@ -31,6 +34,7 @@ var justConnectedToNet = true
 
 var conn *ethclient.Client
 var factomAnchor *FactomAnchor
+var endOfBacklogHeight uint32
 
 //"0xbbcc0c80"
 var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
@@ -158,35 +162,59 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 
-	ad, err := dbo.FetchAnchorDataHead()
-	if err != nil {
-		return err
-	}
-
-	var height uint32
-	if ad == nil {
-		height = 0
-	} else {
-		height = ad.DBlockHeight + 1
-	}
-
 	ps, err = dbo.FetchProgramState()
 	if err != nil {
 		return err
 	}
 
-	// We first anchor the newest block before proceeding to anchor older blocks
-	_, _, err = AnchorBlockByHeight(dbo, ps.LastFactomDBlockHeightChecked)
+	// First, anchor a merkle root of the newest 1000 blocks (change windowSize for testing purposes)
+	windowSize := uint32(100)
+	dblockhi := ps.LastFactomDBlockHeightChecked
+	var dblocklo uint32
+	if dblockhi < windowSize - 1 {
+		dblocklo = 0
+	} else {
+		dblocklo = dblockhi - windowSize + 1
+	}
+	if endOfBacklogHeight == 0 {
+		endOfBacklogHeight = dblockhi
+	}
+	_, _, err = AnchorBlockWindow(dbo, dblocklo, dblockhi)
 	if err != nil {
 		return err
 	}
 
+	// Check if the anchor we just submitted will cover the entire backlog
+	if dblockhi < windowSize - 1 {
+		return nil
+	}
+
+	// Now try to anchor some of the block windows from the backlog
+	ad, err := dbo.FetchAnchorDataHead()
+	if err != nil {
+		return err
+	}
+
+	if ad == nil {
+		// We haven't anchored any of the backlog, start with the first 1000 block window
+		dblocklo = 0
+		dblockhi = windowSize - 1
+	} else {
+		// We've anchored some of the backlog, so move to the next 1000 block window
+		dblocklo = ad.DBlockHeight + 1
+		dblockhi = dblocklo + windowSize - 1
+	}
+
 	for i := 0; i < 10; {
-		done, skip, err := AnchorBlockByHeight(dbo, height)
+		done, skip, err := AnchorBlockWindow(dbo, dblocklo, dblockhi)
 		if err != nil {
 			return err
 		}
-		height++
+		dblocklo += windowSize
+		dblockhi += windowSize
+		if dblockhi >= endOfBacklogHeight {
+			return nil // We're all caught up to the present
+		}
 		if done == true {
 			return nil
 		}
@@ -199,10 +227,11 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
+// AnchorBlockWindow creates a Merkle root of all Directory Blocks from height lo to hi, and then submits that MR to Ethereum.
 // returns done when we're done anchoring
 // returns skip if we can skip anchoring this block
-func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (done bool, skip bool, err error) {
-	ad, err := dbo.FetchAnchorData(height)
+func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, lo, hi uint32) (done bool, skip bool, err error) {
+	ad, err := dbo.FetchAnchorData(hi)
 	if err != nil {
 		done = true
 		skip = false
@@ -220,13 +249,34 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 	}
 
 	time.Sleep(5 * time.Second)
-	tx, err := AnchorBlock(int64(ad.DBlockHeight), ad.DBlockKeyMR)
+
+	// TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package
+	var dblockMRs []interfaces.IHash
+	for i := lo; i <= hi; i++ {
+		block, err := api.GetDBlockByHeight(uint32(i))
+		if err != nil {
+			done = true
+			skip = false
+			return done, skip, err
+		}
+		dblockMR, err := primitives.NewShaHashFromStr(block.BodyKeyMR().String())
+		if err != nil {
+			done = true
+			skip = false
+			return done, skip, err
+		}
+		dblockMRs = append(dblockMRs, dblockMR)
+	}
+	branch := primitives.BuildMerkleBranchForEntryHash(dblockMRs, dblockMRs[0], true)
+	merkleRoot := branch[len(branch) - 1].Top.String()
+
+	tx, err := SendAnchor(int64(ad.DBlockHeight), merkleRoot)
 	if err != nil {
 		done = false
 		skip = true
 		return
 	}
-	fmt.Printf("Submitted Ethereum Anchor for DBlock %v\n", height)
+	fmt.Printf("Submitted Ethereum Anchor for DBlocks %v to %v\n", lo, hi)
 
 	ad.Ethereum.TXID = tx
 	err = dbo.InsertAnchorData(ad, false)
@@ -241,7 +291,7 @@ func AnchorBlockByHeight(dbo *database.AnchorDatabaseOverlay, height uint32) (do
 	return
 }
 
-func AnchorBlock(height int64, keyMR string) (string, error) {
+func SendAnchor(height int64, merkleRoot string) (string, error) {
 	gasInt, err := strconv.ParseInt(GasLimit, 10, 0)
 	if err != nil {
 		fmt.Printf("error parsing GasLimit in config file - %v", err)
@@ -260,7 +310,7 @@ func AnchorBlock(height int64, keyMR string) (string, error) {
 	data := "0x"
 	data += EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)")
 	data += EthereumAPI.IntToData(height)
-	data += keyMR
+	data += merkleRoot
 
 	tx := new(EthereumAPI.TransactionObject)
 	tx.From = WalletAddress

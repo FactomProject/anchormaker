@@ -224,7 +224,36 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if anchorData == nil {
 			anchorData := new(database.AnchorData)
 			anchorData.DBlockHeight = dBlock.GetDatabaseHeight()
-			anchorData.DBlockKeyMR = dBlock.DatabasePrimaryIndex().String()
+
+			// TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package
+			hi := dBlock.GetDatabaseHeight()
+			var lo uint32
+			if hi < 99 {
+				lo = 0
+			} else {
+				lo = hi - 99
+			}
+			var dblockMRs []interfaces.IHash
+			for i := lo; i <= hi; i++ {
+				block, err := api.GetDBlockByHeight(uint32(i))
+				if err != nil {
+					return 0, err
+				}
+				dblockMR, err := primitives.NewShaHashFromStr(block.BodyKeyMR().String())
+				if err != nil {
+					return 0, err
+				}
+				dblockMRs = append(dblockMRs, dblockMR)
+			}
+			var merkleRoot string
+			if hi == lo {
+				merkleRoot = dblockMRs[0].String()
+			} else {
+				branch := primitives.BuildMerkleBranchForEntryHash(dblockMRs, dblockMRs[0], true)
+				merkleRoot = branch[len(branch)-1].Top.String()
+			}
+
+			anchorData.DBlockKeyMR = merkleRoot
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
 				return 0, err
