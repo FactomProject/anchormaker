@@ -171,13 +171,13 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if err != nil {
 						return 0, err
 					}
-					if anchorData.DBlockKeyMR != ar.KeyMR {
+					if anchorData.MerkleRoot != ar.KeyMR {
 						if IgnoreWrongEntries == false {
 							fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
-							panic(fmt.Sprintf("%v vs %v", anchorData.DBlockKeyMR, ar.KeyMR))
-							return 0, fmt.Errorf("AnchorData KeyMR does not match AnchorRecord KeyMR")
+							panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.KeyMR))
+							return 0, fmt.Errorf("AnchorData MerkleRoot does not match AnchorRecord MerkleRoot")
 						} else {
-							fmt.Printf("Bad AR: Height %v has KeyMR %v, found anchorrecord %v\n", ar.DBHeight, anchorData.DBlockKeyMR, ar.KeyMR)
+							fmt.Printf("Bad AR: Height %v has MerkleRoot %v, found anchorrecord %v\n", ar.DBHeight, anchorData.MerkleRoot, ar.KeyMR)
 							continue
 						}
 					}
@@ -224,36 +224,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if anchorData == nil {
 			anchorData := new(database.AnchorData)
 			anchorData.DBlockHeight = dBlock.GetDatabaseHeight()
-
-			// TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package
-			hi := dBlock.GetDatabaseHeight()
-			var lo uint32
-			if hi < 99 {
-				lo = 0
-			} else {
-				lo = hi - 99
-			}
-			var dblockMRs []interfaces.IHash
-			for i := lo; i <= hi; i++ {
-				block, err := api.GetDBlockByHeight(uint32(i))
-				if err != nil {
-					return 0, err
-				}
-				dblockMR, err := primitives.NewShaHashFromStr(block.BodyKeyMR().String())
-				if err != nil {
-					return 0, err
-				}
-				dblockMRs = append(dblockMRs, dblockMR)
-			}
-			var merkleRoot string
-			if hi == lo {
-				merkleRoot = dblockMRs[0].String()
-			} else {
-				branch := primitives.BuildMerkleBranchForEntryHash(dblockMRs, dblockMRs[0], true)
-				merkleRoot = branch[len(branch)-1].Top.String()
-			}
-
-			anchorData.DBlockKeyMR = merkleRoot
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
 				return 0, err
@@ -313,7 +283,8 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
-			anchorRecord.KeyMR = anchorData.DBlockKeyMR
+			// TODO: update AnchorRecord struct in factomd to reflect that this is no longer the KeyMR of a singe DBlock, but for a window
+			anchorRecord.KeyMR = anchorData.MerkleRoot
 			anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked + 1
 
 			//Bitcoin anchor

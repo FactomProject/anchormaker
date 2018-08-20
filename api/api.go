@@ -15,6 +15,7 @@ import (
 	"github.com/FactomProject/factomd/common/entryCreditBlock"
 	"github.com/FactomProject/factomd/common/factoid"
 	"github.com/FactomProject/factomd/common/interfaces"
+	"github.com/FactomProject/factomd/common/primitives"
 )
 
 var server string = "localhost:8088" //Localhost
@@ -90,6 +91,31 @@ func GetDBlockByHeight(height uint32) (interfaces.IDirectoryBlock, error) {
 		return nil, err
 	}
 	return dblock, nil
+}
+
+
+// TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package when creating factomd "anchor" RPC call
+// GetMerkleRootOfDBlockWindow calculates a Merkle root for all Directory Blocks in the specified range (inclusive)
+func GetMerkleRootOfDBlockWindow(from, to uint32) (interfaces.IHash, error) {
+	var dblockMRs []interfaces.IHash
+	for i := from; i <= to; i++ {
+		block, err := GetDBlockByHeight(uint32(i))
+		if err != nil {
+			return nil, err
+		}
+		dblockMR, err := primitives.NewShaHashFromStr(block.BodyKeyMR().String())
+		if err != nil {
+			return nil, err
+		}
+		dblockMRs = append(dblockMRs, dblockMR)
+	}
+	if from == to {
+		// Only one DBlock in range, just return it's KeyMR
+		return dblockMRs[0], nil
+	}
+	branch := primitives.BuildMerkleBranchForEntryHash(dblockMRs, dblockMRs[0], true)
+	merkleRoot := branch[len(branch) - 1].Top
+	return merkleRoot, nil
 }
 
 func GetABlock(keymr string) (interfaces.IAdminBlock, error) {

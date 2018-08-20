@@ -17,8 +17,6 @@ import (
 	"net/http"
 	"io/ioutil"
 	"encoding/json"
-	"github.com/FactomProject/factomd/common/interfaces"
-	"github.com/FactomProject/factomd/common/primitives"
 	"github.com/FactomProject/anchormaker/api"
 )
 
@@ -35,9 +33,6 @@ var justConnectedToNet = true
 var conn *ethclient.Client
 var factomAnchor *FactomAnchor
 var endOfBacklogHeight uint32
-
-//"0xbbcc0c80"
-var FunctionPrefix string = "0x" + EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)") //TODO: update prefix on final smart contract deployment
 
 func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
@@ -99,7 +94,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 
 		dbHeight := event.Height
-		merkleRoot := fmt.Sprintf("%064x", event.Merkleroot)
+		merkleRoot := fmt.Sprintf("%064x", event.MerkleRoot)
 
 		// Check if we have a tx for this dbHeight in the database already
 		ad, err := dbo.FetchAnchorData(uint32(dbHeight.Uint64()))
@@ -113,8 +108,8 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 				continue
 			}
 		}
-		if ad.DBlockKeyMR != merkleRoot {
-			fmt.Printf("ad.DBlockKeyMR != keyMR - %v vs %v\n", ad.DBlockKeyMR, merkleRoot)
+		if ad.MerkleRoot != merkleRoot {
+			fmt.Printf("Merkle Root from database != one found in Ethereum contract - %v vs %v\n", ad.MerkleRoot, merkleRoot)
 			continue
 		}
 		if ad.EthereumRecordHeight > 0 {
@@ -123,7 +118,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 		// We have a tx listed in the database already, but now we know it has been mined.
 		// Update the AnchorData to reflect this.
-		ad.Ethereum.Address = strings.ToLower(WalletAddress)
+		ad.Ethereum.Address = strings.ToLower(event.Raw.Address.String())
 		ad.Ethereum.TXID = strings.ToLower(event.Raw.TxHash.String())
 		ad.Ethereum.BlockHeight = int64(event.Raw.BlockNumber)
 		ad.Ethereum.BlockHash = strings.ToLower(event.Raw.BlockHash.String())
@@ -168,7 +163,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	}
 
 	// First, anchor a merkle root of the newest 1000 blocks (change windowSize for testing purposes)
-	windowSize := uint32(100)
+	windowSize := uint32(1000)
 	dblockhi := ps.LastFactomDBlockHeightChecked
 	var dblocklo uint32
 	if dblockhi < windowSize - 1 {
@@ -250,27 +245,12 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, lo, hi uint32) (done
 
 	time.Sleep(5 * time.Second)
 
-	// TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package
-	var dblockMRs []interfaces.IHash
-	for i := lo; i <= hi; i++ {
-		block, err := api.GetDBlockByHeight(uint32(i))
-		if err != nil {
-			done = true
-			skip = false
-			return done, skip, err
-		}
-		dblockMR, err := primitives.NewShaHashFromStr(block.BodyKeyMR().String())
-		if err != nil {
-			done = true
-			skip = false
-			return done, skip, err
-		}
-		dblockMRs = append(dblockMRs, dblockMR)
+	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+	if err != nil {
+		return true, false, err
 	}
-	branch := primitives.BuildMerkleBranchForEntryHash(dblockMRs, dblockMRs[0], true)
-	merkleRoot := branch[len(branch) - 1].Top.String()
 
-	tx, err := SendAnchor(int64(ad.DBlockHeight), merkleRoot)
+	tx, err := SendAnchor(int64(hi), merkleRoot.String())
 	if err != nil {
 		done = false
 		skip = true
@@ -278,6 +258,7 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, lo, hi uint32) (done
 	}
 	fmt.Printf("Submitted Ethereum Anchor for DBlocks %v to %v\n", lo, hi)
 
+	ad.MerkleRoot = merkleRoot.String()
 	ad.Ethereum.TXID = tx
 	err = dbo.InsertAnchorData(ad, false)
 	if err != nil {
@@ -333,6 +314,7 @@ func SendAnchor(height int64, merkleRoot string) (string, error) {
 	return txHash, nil
 }
 
+/*
 // GetKeymrAtHeight returns the merkle root at a given DBlock height as a hex string
 func GetKeymrAtHeight(height int64) (string, error) {
 	opts := bind.CallOpts{}
@@ -345,6 +327,7 @@ func GetKeymrAtHeight(height int64) (string, error) {
 	}
 	return fmt.Sprintf("%064x", keymr), nil
 }
+*/
 
 func CheckIfEthSynced() (bool, error) {
 	// Check if the eth node is connected

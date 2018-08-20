@@ -12,13 +12,13 @@ import (
 var AnchorDataStr []byte = []byte("AnchorData")
 
 type AnchorDataBase struct {
-	DBlockKeyMR  string
-	DBlockHeight uint32
+	MerkleRoot   string // Merkle Root of a 1000 block window of Directory Blocks
+	DBlockHeight uint32 // Maximum height that is in the 1000 block window
 
 	BitcoinRecordHeight     uint32
 	BitcoinRecordEntryHash  string
-	EthereumRecordHeight    uint32
-	EthereumRecordEntryHash string
+	EthereumRecordHeight    uint32 // Directory Block height for this Ethereum anchor's record within Factom
+	EthereumRecordEntryHash string // Entry Hash for this Ethereum anchor's record within Factom
 
 	Bitcoin struct {
 		Address     string //"1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1",
@@ -29,11 +29,11 @@ type AnchorDataBase struct {
 	}
 
 	Ethereum struct {
-		Address     string //0x30aa981f6d2fce81083e584c8ee2f822b548752f
+		Address     string // Contract Address that the anchor was put into
 		TXID        string //0x50ea0effc383542811a58704a6d6842ed6d76439a2d942d941896ad097c06a78
 		BlockHeight int64  //293003
 		BlockHash   string //0x3b504616495fc9cf7be9b5b776692a9abbfb95491fa62abf62dcdf4d53ff5979
-		Offset      int64  //0
+		Offset      int64  // Transaction index within its block
 		//Input       string //0x085f451f0000000000000000000000000000000000000000000000000000000000000000
 	}
 }
@@ -80,7 +80,7 @@ func (e *AnchorData) DatabasePrimaryIndex() interfaces.IHash {
 }
 
 func (e *AnchorData) DatabaseSecondaryIndex() interfaces.IHash {
-	h, err := primitives.NewShaHashFromStr(e.DBlockKeyMR)
+	h, err := primitives.NewShaHashFromStr(e.MerkleRoot)
 	if err != nil {
 		panic(err)
 	}

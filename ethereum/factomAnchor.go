@@ -16,10 +16,10 @@ import (
 )
 
 // FactomAnchorABI is the input ABI used to generate the binding from.
-const FactomAnchorABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"creator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"frozen\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getHeight\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"anchors\",\"outputs\":[{\"name\":\"KeyMR\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"name\":\"getAnchor\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"freeze\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"maxHeight\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newHeight\",\"type\":\"uint256\"}],\"name\":\"setHeight\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"checkFrozen\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"blockNumber\",\"type\":\"uint256\"},{\"name\":\"keyMR\",\"type\":\"uint256\"}],\"name\":\"setAnchor\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"height\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"merkleroot\",\"type\":\"uint256\"}],\"name\":\"AnchorMade\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"height\",\"type\":\"uint256\"}],\"name\":\"AnchorHeightSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"height\",\"type\":\"uint256\"}],\"name\":\"AnchoringFrozen\",\"type\":\"event\"}]"
+const FactomAnchorABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"creator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"frozen\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"anchors\",\"outputs\":[{\"name\":\"MerkleRoot\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"name\":\"getAnchor\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"checkFrozen\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"blockNumber\",\"type\":\"uint256\"},{\"name\":\"merkleRoot\",\"type\":\"uint256\"}],\"name\":\"setAnchor\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"height\",\"type\":\"uint256\"}],\"name\":\"freeze\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"height\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"merkleRoot\",\"type\":\"uint256\"}],\"name\":\"AnchorMade\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"height\",\"type\":\"uint256\"}],\"name\":\"AnchoringFrozen\",\"type\":\"event\"}]"
 
 // FactomAnchorBin is the compiled bytecode used for deploying new contracts.
-const FactomAnchorBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a031916331781556002556003805460ff191690556103fb8061003f6000396000f3006080604052600436106100a35763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166302d05d3f81146100a8578063054f7d9c146100e657806319efb11d1461010f578063368b733e146101365780634c7df18f1461014e57806362a5af3b1461016657806363aa5ce21461017d578063741a39441461019257806398fb22fd146101aa578063bbcc0c80146101bf575b600080fd5b3480156100b457600080fd5b506100bd6101da565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b3480156100f257600080fd5b506100fb6101f6565b604080519115158252519081900360200190f35b34801561011b57600080fd5b506101246101ff565b60408051918252519081900360200190f35b34801561014257600080fd5b50610124600435610205565b34801561015a57600080fd5b50610124600435610217565b34801561017257600080fd5b5061017b610229565b005b34801561018957600080fd5b50610124610291565b34801561019e57600080fd5b5061017b600435610297565b3480156101b657600080fd5b506100fb610303565b3480156101cb57600080fd5b5061017b60043560243561030c565b60005473ffffffffffffffffffffffffffffffffffffffff1681565b60035460ff1681565b60025490565b60016020526000908152604090205481565b60009081526001602052604090205490565b60005473ffffffffffffffffffffffffffffffffffffffff16331461024d57600080fd5b6003805460ff1916600117905560025460408051918252517f02392dea61af8262e6609d1b99522854b729caa208dbccef7fd70f9508293aa79181900360200190a1565b60025481565b60005473ffffffffffffffffffffffffffffffffffffffff1633146102bb57600080fd5b60035460ff1615156103005760028190556040805182815290517f650ab55358f2f485c020da127018db860ee6b798f45e30ba3fc96fb1b8b8edbd9181900360200190a15b50565b60035460ff1690565b60005473ffffffffffffffffffffffffffffffffffffffff16331461033057600080fd5b60035460ff1615156103cb576000828152600160205260409020819055600254821061038f5760028290556040805183815290517f650ab55358f2f485c020da127018db860ee6b798f45e30ba3fc96fb1b8b8edbd9181900360200190a15b604080518381526020810183905281517f1c6a33c0de150a46e5647f4482e93d30f3a966487eb86e762d69319ab9a6e6b6929181900390910190a15b50505600a165627a7a72305820f3859c76c55784cdeaedb43aba7f656d1c5107a19dc6c02325ca5cc6396383ae0029`
+const FactomAnchorBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a031916331790556002805460ff191690556102e18061003c6000396000f3006080604052600436106100825763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166302d05d3f8114610087578063054f7d9c146100c5578063368b733e146100ee5780634c7df18f1461011857806398fb22fd14610130578063bbcc0c8014610145578063d7a78db814610162575b600080fd5b34801561009357600080fd5b5061009c61017a565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b3480156100d157600080fd5b506100da610196565b604080519115158252519081900360200190f35b3480156100fa57600080fd5b5061010660043561019f565b60408051918252519081900360200190f35b34801561012457600080fd5b506101066004356101b1565b34801561013c57600080fd5b506100da6101c3565b34801561015157600080fd5b506101606004356024356101cc565b005b34801561016e57600080fd5b5061016060043561024e565b60005473ffffffffffffffffffffffffffffffffffffffff1681565b60025460ff1681565b60016020526000908152604090205481565b60009081526001602052604090205490565b60025460ff1690565b60005473ffffffffffffffffffffffffffffffffffffffff1633146101f057600080fd5b60025460ff16151561024a57600082815260016020908152604091829020839055815184815290810183905281517f1c6a33c0de150a46e5647f4482e93d30f3a966487eb86e762d69319ab9a6e6b6929181900390910190a15b5050565b60005473ffffffffffffffffffffffffffffffffffffffff16331461027257600080fd5b6002805460ff191660011790556040805182815290517f02392dea61af8262e6609d1b99522854b729caa208dbccef7fd70f9508293aa79181900360200190a1505600a165627a7a723058206130be459f84d26f9df5a82fa9c59079e7f44a0f5c4a3c004cbce55bba9d5b260029`
 
 // DeployFactomAnchor deploys a new Ethereum contract, binding an instance of FactomAnchor to it.
 func DeployFactomAnchor(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *FactomAnchor, error) {
@@ -178,7 +178,7 @@ func (_FactomAnchor *FactomAnchorTransactorRaw) Transact(opts *bind.TransactOpts
 
 // Anchors is a free data retrieval call binding the contract method 0x368b733e.
 //
-// Solidity: function anchors( uint256) constant returns(KeyMR uint256)
+// Solidity: function anchors( uint256) constant returns(MerkleRoot uint256)
 func (_FactomAnchor *FactomAnchorCaller) Anchors(opts *bind.CallOpts, arg0 *big.Int) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
@@ -190,14 +190,14 @@ func (_FactomAnchor *FactomAnchorCaller) Anchors(opts *bind.CallOpts, arg0 *big.
 
 // Anchors is a free data retrieval call binding the contract method 0x368b733e.
 //
-// Solidity: function anchors( uint256) constant returns(KeyMR uint256)
+// Solidity: function anchors( uint256) constant returns(MerkleRoot uint256)
 func (_FactomAnchor *FactomAnchorSession) Anchors(arg0 *big.Int) (*big.Int, error) {
 	return _FactomAnchor.Contract.Anchors(&_FactomAnchor.CallOpts, arg0)
 }
 
 // Anchors is a free data retrieval call binding the contract method 0x368b733e.
 //
-// Solidity: function anchors( uint256) constant returns(KeyMR uint256)
+// Solidity: function anchors( uint256) constant returns(MerkleRoot uint256)
 func (_FactomAnchor *FactomAnchorCallerSession) Anchors(arg0 *big.Int) (*big.Int, error) {
 	return _FactomAnchor.Contract.Anchors(&_FactomAnchor.CallOpts, arg0)
 }
@@ -306,241 +306,46 @@ func (_FactomAnchor *FactomAnchorCallerSession) GetAnchor(blockNumber *big.Int) 
 	return _FactomAnchor.Contract.GetAnchor(&_FactomAnchor.CallOpts, blockNumber)
 }
 
-// GetHeight is a free data retrieval call binding the contract method 0x19efb11d.
+// Freeze is a paid mutator transaction binding the contract method 0xd7a78db8.
 //
-// Solidity: function getHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorCaller) GetHeight(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _FactomAnchor.contract.Call(opts, out, "getHeight")
-	return *ret0, err
+// Solidity: function freeze(height uint256) returns()
+func (_FactomAnchor *FactomAnchorTransactor) Freeze(opts *bind.TransactOpts, height *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.contract.Transact(opts, "freeze", height)
 }
 
-// GetHeight is a free data retrieval call binding the contract method 0x19efb11d.
+// Freeze is a paid mutator transaction binding the contract method 0xd7a78db8.
 //
-// Solidity: function getHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorSession) GetHeight() (*big.Int, error) {
-	return _FactomAnchor.Contract.GetHeight(&_FactomAnchor.CallOpts)
+// Solidity: function freeze(height uint256) returns()
+func (_FactomAnchor *FactomAnchorSession) Freeze(height *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.Contract.Freeze(&_FactomAnchor.TransactOpts, height)
 }
 
-// GetHeight is a free data retrieval call binding the contract method 0x19efb11d.
+// Freeze is a paid mutator transaction binding the contract method 0xd7a78db8.
 //
-// Solidity: function getHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorCallerSession) GetHeight() (*big.Int, error) {
-	return _FactomAnchor.Contract.GetHeight(&_FactomAnchor.CallOpts)
-}
-
-// MaxHeight is a free data retrieval call binding the contract method 0x63aa5ce2.
-//
-// Solidity: function maxHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorCaller) MaxHeight(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _FactomAnchor.contract.Call(opts, out, "maxHeight")
-	return *ret0, err
-}
-
-// MaxHeight is a free data retrieval call binding the contract method 0x63aa5ce2.
-//
-// Solidity: function maxHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorSession) MaxHeight() (*big.Int, error) {
-	return _FactomAnchor.Contract.MaxHeight(&_FactomAnchor.CallOpts)
-}
-
-// MaxHeight is a free data retrieval call binding the contract method 0x63aa5ce2.
-//
-// Solidity: function maxHeight() constant returns(uint256)
-func (_FactomAnchor *FactomAnchorCallerSession) MaxHeight() (*big.Int, error) {
-	return _FactomAnchor.Contract.MaxHeight(&_FactomAnchor.CallOpts)
-}
-
-// Freeze is a paid mutator transaction binding the contract method 0x62a5af3b.
-//
-// Solidity: function freeze() returns()
-func (_FactomAnchor *FactomAnchorTransactor) Freeze(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _FactomAnchor.contract.Transact(opts, "freeze")
-}
-
-// Freeze is a paid mutator transaction binding the contract method 0x62a5af3b.
-//
-// Solidity: function freeze() returns()
-func (_FactomAnchor *FactomAnchorSession) Freeze() (*types.Transaction, error) {
-	return _FactomAnchor.Contract.Freeze(&_FactomAnchor.TransactOpts)
-}
-
-// Freeze is a paid mutator transaction binding the contract method 0x62a5af3b.
-//
-// Solidity: function freeze() returns()
-func (_FactomAnchor *FactomAnchorTransactorSession) Freeze() (*types.Transaction, error) {
-	return _FactomAnchor.Contract.Freeze(&_FactomAnchor.TransactOpts)
+// Solidity: function freeze(height uint256) returns()
+func (_FactomAnchor *FactomAnchorTransactorSession) Freeze(height *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.Contract.Freeze(&_FactomAnchor.TransactOpts, height)
 }
 
 // SetAnchor is a paid mutator transaction binding the contract method 0xbbcc0c80.
 //
-// Solidity: function setAnchor(blockNumber uint256, keyMR uint256) returns()
-func (_FactomAnchor *FactomAnchorTransactor) SetAnchor(opts *bind.TransactOpts, blockNumber *big.Int, keyMR *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.contract.Transact(opts, "setAnchor", blockNumber, keyMR)
+// Solidity: function setAnchor(blockNumber uint256, merkleRoot uint256) returns()
+func (_FactomAnchor *FactomAnchorTransactor) SetAnchor(opts *bind.TransactOpts, blockNumber *big.Int, merkleRoot *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.contract.Transact(opts, "setAnchor", blockNumber, merkleRoot)
 }
 
 // SetAnchor is a paid mutator transaction binding the contract method 0xbbcc0c80.
 //
-// Solidity: function setAnchor(blockNumber uint256, keyMR uint256) returns()
-func (_FactomAnchor *FactomAnchorSession) SetAnchor(blockNumber *big.Int, keyMR *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.Contract.SetAnchor(&_FactomAnchor.TransactOpts, blockNumber, keyMR)
+// Solidity: function setAnchor(blockNumber uint256, merkleRoot uint256) returns()
+func (_FactomAnchor *FactomAnchorSession) SetAnchor(blockNumber *big.Int, merkleRoot *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.Contract.SetAnchor(&_FactomAnchor.TransactOpts, blockNumber, merkleRoot)
 }
 
 // SetAnchor is a paid mutator transaction binding the contract method 0xbbcc0c80.
 //
-// Solidity: function setAnchor(blockNumber uint256, keyMR uint256) returns()
-func (_FactomAnchor *FactomAnchorTransactorSession) SetAnchor(blockNumber *big.Int, keyMR *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.Contract.SetAnchor(&_FactomAnchor.TransactOpts, blockNumber, keyMR)
-}
-
-// SetHeight is a paid mutator transaction binding the contract method 0x741a3944.
-//
-// Solidity: function setHeight(newHeight uint256) returns()
-func (_FactomAnchor *FactomAnchorTransactor) SetHeight(opts *bind.TransactOpts, newHeight *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.contract.Transact(opts, "setHeight", newHeight)
-}
-
-// SetHeight is a paid mutator transaction binding the contract method 0x741a3944.
-//
-// Solidity: function setHeight(newHeight uint256) returns()
-func (_FactomAnchor *FactomAnchorSession) SetHeight(newHeight *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.Contract.SetHeight(&_FactomAnchor.TransactOpts, newHeight)
-}
-
-// SetHeight is a paid mutator transaction binding the contract method 0x741a3944.
-//
-// Solidity: function setHeight(newHeight uint256) returns()
-func (_FactomAnchor *FactomAnchorTransactorSession) SetHeight(newHeight *big.Int) (*types.Transaction, error) {
-	return _FactomAnchor.Contract.SetHeight(&_FactomAnchor.TransactOpts, newHeight)
-}
-
-// FactomAnchorAnchorHeightSetIterator is returned from FilterAnchorHeightSet and is used to iterate over the raw logs and unpacked data for AnchorHeightSet events raised by the FactomAnchor contract.
-type FactomAnchorAnchorHeightSetIterator struct {
-	Event *FactomAnchorAnchorHeightSet // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *FactomAnchorAnchorHeightSetIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(FactomAnchorAnchorHeightSet)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(FactomAnchorAnchorHeightSet)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *FactomAnchorAnchorHeightSetIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *FactomAnchorAnchorHeightSetIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// FactomAnchorAnchorHeightSet represents a AnchorHeightSet event raised by the FactomAnchor contract.
-type FactomAnchorAnchorHeightSet struct {
-	Height *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterAnchorHeightSet is a free log retrieval operation binding the contract event 0x650ab55358f2f485c020da127018db860ee6b798f45e30ba3fc96fb1b8b8edbd.
-//
-// Solidity: e AnchorHeightSet(height uint256)
-func (_FactomAnchor *FactomAnchorFilterer) FilterAnchorHeightSet(opts *bind.FilterOpts) (*FactomAnchorAnchorHeightSetIterator, error) {
-
-	logs, sub, err := _FactomAnchor.contract.FilterLogs(opts, "AnchorHeightSet")
-	if err != nil {
-		return nil, err
-	}
-	return &FactomAnchorAnchorHeightSetIterator{contract: _FactomAnchor.contract, event: "AnchorHeightSet", logs: logs, sub: sub}, nil
-}
-
-// WatchAnchorHeightSet is a free log subscription operation binding the contract event 0x650ab55358f2f485c020da127018db860ee6b798f45e30ba3fc96fb1b8b8edbd.
-//
-// Solidity: e AnchorHeightSet(height uint256)
-func (_FactomAnchor *FactomAnchorFilterer) WatchAnchorHeightSet(opts *bind.WatchOpts, sink chan<- *FactomAnchorAnchorHeightSet) (event.Subscription, error) {
-
-	logs, sub, err := _FactomAnchor.contract.WatchLogs(opts, "AnchorHeightSet")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(FactomAnchorAnchorHeightSet)
-				if err := _FactomAnchor.contract.UnpackLog(event, "AnchorHeightSet", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
+// Solidity: function setAnchor(blockNumber uint256, merkleRoot uint256) returns()
+func (_FactomAnchor *FactomAnchorTransactorSession) SetAnchor(blockNumber *big.Int, merkleRoot *big.Int) (*types.Transaction, error) {
+	return _FactomAnchor.Contract.SetAnchor(&_FactomAnchor.TransactOpts, blockNumber, merkleRoot)
 }
 
 // FactomAnchorAnchorMadeIterator is returned from FilterAnchorMade and is used to iterate over the raw logs and unpacked data for AnchorMade events raised by the FactomAnchor contract.
@@ -613,13 +418,13 @@ func (it *FactomAnchorAnchorMadeIterator) Close() error {
 // FactomAnchorAnchorMade represents a AnchorMade event raised by the FactomAnchor contract.
 type FactomAnchorAnchorMade struct {
 	Height     *big.Int
-	Merkleroot *big.Int
+	MerkleRoot *big.Int
 	Raw        types.Log // Blockchain specific contextual infos
 }
 
 // FilterAnchorMade is a free log retrieval operation binding the contract event 0x1c6a33c0de150a46e5647f4482e93d30f3a966487eb86e762d69319ab9a6e6b6.
 //
-// Solidity: e AnchorMade(height uint256, merkleroot uint256)
+// Solidity: e AnchorMade(height uint256, merkleRoot uint256)
 func (_FactomAnchor *FactomAnchorFilterer) FilterAnchorMade(opts *bind.FilterOpts) (*FactomAnchorAnchorMadeIterator, error) {
 
 	logs, sub, err := _FactomAnchor.contract.FilterLogs(opts, "AnchorMade")
@@ -631,7 +436,7 @@ func (_FactomAnchor *FactomAnchorFilterer) FilterAnchorMade(opts *bind.FilterOpt
 
 // WatchAnchorMade is a free log subscription operation binding the contract event 0x1c6a33c0de150a46e5647f4482e93d30f3a966487eb86e762d69319ab9a6e6b6.
 //
-// Solidity: e AnchorMade(height uint256, merkleroot uint256)
+// Solidity: e AnchorMade(height uint256, merkleRoot uint256)
 func (_FactomAnchor *FactomAnchorFilterer) WatchAnchorMade(opts *bind.WatchOpts, sink chan<- *FactomAnchorAnchorMade) (event.Subscription, error) {
 
 	logs, sub, err := _FactomAnchor.contract.WatchLogs(opts, "AnchorMade")
