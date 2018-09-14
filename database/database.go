@@ -118,7 +118,7 @@ func (db *AnchorDatabaseOverlay) FetchAnchorDataHead() (*AnchorData, error) {
 }
 
 func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
-	fmt.Printf("UpdateAnchorDataHead\n")
+	fmt.Println("\nUpdateAnchorDataHead():")
 	ad, err := db.FetchAnchorDataHead()
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
 	} else {
 		nextCheck = ad.DBlockHeight + 1
 	}
-	fmt.Printf("Starting anchor completion check at DBlock height - %v\n", nextCheck)
+	fmt.Printf("Starting anchor completion check at DBlock height %v\n", nextCheck)
 	head := ad
 	for {
 		// Check if there is a complete window of 1000 blocks
@@ -143,7 +143,7 @@ func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
 				break
 			}
 			if ad.IsComplete() {
-				fmt.Printf("%v is complete\n", nextCheck)
+				fmt.Printf("Complete window starting at dblock %v\n", nextCheck)
 				head = ad
 				completeWindow = true
 				nextCheck = i

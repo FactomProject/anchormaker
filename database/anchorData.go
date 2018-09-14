@@ -61,10 +61,12 @@ func (e *AnchorData) String() string {
 
 var _ interfaces.DatabaseBatchable = (*AnchorData)(nil)
 
+// IsSubmitted returns whether or not an Ethereum transaction has been submitted for this anchor
 func (c *AnchorData) IsSubmitted() bool {
 	return c.Ethereum.TXID != ""
 }
 
+// IsComplete returns whether or not a given anchor has been recorded back into Factom
 func (c *AnchorData) IsComplete() bool {
 	return c.EthereumRecordHeight > 0
 }

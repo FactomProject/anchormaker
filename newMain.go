@@ -56,7 +56,7 @@ func main() {
 	go interruptLoop()
 
 	for {
-		//ensuring safe interruption
+		// ensuring safe interruption
 		select {
 		case <-interruptChannel:
 			return
@@ -80,7 +80,7 @@ func main() {
 	}
 }
 
-//Function for quickly shutting down the function, disregarding safety
+// Function for quickly shutting down the function, disregarding safety
 func interruptLoop() {
 	var interruptChannel chan os.Signal
 	interruptChannel = make(chan os.Signal, 1)
@@ -95,40 +95,46 @@ func interruptLoop() {
 	os.Exit(1)
 }
 
-//The loop that synchronizes AnchorMaker with all networks
+// SynchronizationLoop ensures AnchorMaker is up to date with all relevant events that
+// have occurred on both the Factom and Ethereum networks
 func SynchronizationLoop(dbo *database.AnchorDatabaseOverlay) error {
-	fmt.Printf("SynchronizationLoop\n")
+	fmt.Println("--------------------------------------------------------------------------------")
+	fmt.Println("SynchronizationLoop():")
 	i := 0
 	for {
-		//Iterate until we are fully in synch with all of the networks
-		//Repeat iteration until there is nothing left to synch
-		//to make sure all of the networks are in synch at the same time
-		//(nothing has drifted apart while we were busy with other systems)
-		fmt.Printf("Loop %v\n", i)
+		// Repeat iteration until we are fully in sync with all both Factom and Ethereum
+		// to make sure all of the networks are in sync at the same time
+		// (nothing has drifted apart while we were busy with other systems)
+		fmt.Printf("Loop %v started\n", i)
 		blockCount, err := factom.SynchronizeFactomData(dbo)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("blockCount - %v\n", blockCount)
+		fmt.Printf("New Factom blocks found = %v\n", blockCount)
 
 		txCount, err := ethereum.SynchronizeEthereumData(dbo)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("txCount - %v\n", txCount)
+		fmt.Printf("New Ethereum contract txs found = %v\n", txCount)
 
 		if (blockCount + txCount) == 0 {
 			break
 		}
+		fmt.Printf("Loop %v ended with %v new DBlocks and %v new Ethereum txs found\n", i, blockCount, txCount)
 		i++
 	}
 	return nil
 }
 
+// AnchorLoop submits Ethereum anchors for all new directory blocks found during the SynchronizationLoop,
+// and then submits Factom entries (anchor records) for all newly confirmed contract txs found during the
+// SynchronizationLoop
 func AnchorLoop(dbo *database.AnchorDatabaseOverlay, c *config.AnchorConfig) error {
-	var err error
+	fmt.Println("--------------------------------------------------------------------------------")
+	fmt.Println("AnchorLoop():")
 
-	err = setup.CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, 100)
+	err := setup.CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, 100)
 	if err != nil {
 		return err
 	}

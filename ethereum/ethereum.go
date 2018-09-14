@@ -57,8 +57,10 @@ func LoadConfig(c *config.AnchorConfig) {
 	}
 }
 
+// SynchronizeEthereumData quickly checks for recently confirmed anchor events in our smart contract
+// and returns the number of new transactions that were found
 func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
-	fmt.Println("SynchronizeEthereumData")
+	fmt.Println("\nSynchronizeEthereumData():")
 	txCount := 0
 
 	synced, err := CheckIfEthSynced()
@@ -102,7 +104,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		if ad == nil {
 			if IgnoreWrongEntries == false {
-				return 0, fmt.Errorf("We have anchored block from outside of our DB")
+				return 0, fmt.Errorf("found anchor for directory block %d that is not in our DB", dbHeight.Uint64())
 			} else {
 				continue
 			}
@@ -123,7 +125,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			ad.MerkleRoot = merkleRoot.String()
 		}
 		if ad.MerkleRoot != merkleRoot {
-			fmt.Printf("Merkle Root for DBlock %d from database != one found in Ethereum contract - %v vs %v\n", ad.DBlockHeight, ad.MerkleRoot, merkleRoot)
+			fmt.Printf("Merkle Root for DBlock %d from database != one found in Ethereum contract: %v vs %v\n", ad.DBlockHeight, ad.MerkleRoot, merkleRoot)
 			continue
 		}
 		if ad.EthereumRecordHeight > 0 {
@@ -142,7 +144,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		fmt.Printf("DBlock %v is already anchored in Ethereum!\n", dbHeight)
+		fmt.Printf("Found anchor for DBlock %v: %v, %v\n", dbHeight, ad.DBlockHeight, ad.MerkleRoot)
 	}
 
 	// Update the block to start at for the next synchronization loop
@@ -156,8 +158,11 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	return txCount, nil
 }
 
+// AnchorBlocksIntoEthereum first submits an Ethereum anchor for the newest directory blocks found during
+// the SynchronizationLoop, then attempts to start filling in the backlog of directory blocks that haven't
+// been anchored yet (starting with the oldest in the backlog)
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
-	fmt.Println("AnchorBlocksIntoEthereum")
+	fmt.Println("\nAnchorBlocksIntoEthereum():")
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
 		return err

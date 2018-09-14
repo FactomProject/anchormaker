@@ -19,7 +19,7 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
-var IgnoreWrongEntries bool = true
+var IgnoreWrongEntries = true
 
 var AnchorSigPublicKeys []interfaces.Verifier
 
@@ -32,7 +32,6 @@ var ECBalanceThreshold int64
 
 //6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
 var EthereumAnchorChainID interfaces.IHash
-
 var FirstEthereumAnchorChainEntryHash interfaces.IHash
 
 func init() {
@@ -74,22 +73,9 @@ func LoadConfig(c *config.AnchorConfig) {
 	ECBalanceThreshold = c.Factom.ECBalanceThreshold
 }
 
-func CheckFactomBalance() (int64, int64, error) {
-	ecBalance, err := api.GetECBalance(ServerECKey.PublicKeyString())
-	if err != nil {
-		return 0, 0, err
-	}
-
-	fBalance, err := api.GetFactoidBalance(ServerPrivKey.PublicKeyString())
-	if err != nil {
-		return 0, 0, err
-	}
-	return fBalance, ecBalance, nil
-}
-
-// Returns number of blocks synchronized
+// SynchronizeFactomData checks for recently created directory blocks and returns how many new ones were found
 func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
-	fmt.Println("SynchronizeFactomData")
+	fmt.Println("\nSynchronizeFactomData():")
 	blockCount := 0
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
@@ -98,14 +84,15 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	//note, this mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
 	ps.ProgramStateMutex.Lock()
 	defer ps.ProgramStateMutex.Unlock()
+
+	// If it's 0, we don't know if we have ANY blocks
 	nextHeight := ps.LastFactomDBlockHeightChecked
 	if nextHeight > 0 {
-		//If it's 0, we don't know if we have ANY blocks. If it's more than 0, we know we have that block, so we skip it
+		// It's more than 0, so we know we have that block --> skip it
 		nextHeight++
 	}
 
 	dBlockList := []interfaces.IDirectoryBlock{}
-
 	for {
 		dBlock, err := api.GetDBlockByHeight(nextHeight)
 		if err != nil {
@@ -116,18 +103,17 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 
 		dBlockList = append(dBlockList, dBlock)
-		fmt.Printf("Fetched dblock %v\n", dBlock.GetDatabaseHeight())
+		fmt.Printf("Fetched newly found directory block %v\n", dBlock.GetDatabaseHeight())
 		nextHeight = dBlock.GetDatabaseHeight() + 1
 	}
-
 	if len(dBlockList) == 0 {
 		return 0, nil
 	}
-	var currentHeadHeight uint32 = 0
 
+	var currentHeadHeight uint32 = 0
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
-			//Looking for Ethereum anchor record
+			// Looking for Ethereum anchor records in new DBlock
 			if v.GetChainID().String() == EthereumAnchorChainID.String() {
 				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
@@ -184,7 +170,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 							panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.KeyMR))
 							return 0, fmt.Errorf("AnchorData MerkleRoot does not match AnchorRecord MerkleRoot")
 						} else {
-							fmt.Printf("Bad AR: Height %v has MerkleRoot %v, found anchorrecord %v\n", ar.DBHeight, anchorData.MerkleRoot, ar.KeyMR)
+							fmt.Printf("Bad AR: Height %v has MerkleRoot %v in database, but found %v in AnchorRecord on Factom\n", ar.DBHeight, anchorData.MerkleRoot, ar.KeyMR)
 							continue
 						}
 					}
@@ -226,7 +212,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			blockCount++
 		}
 		currentHeadHeight = dBlock.GetDatabaseHeight()
-
 		ps.LastFactomDBlockHeightChecked = currentHeadHeight
 
 		err = dbo.InsertProgramState(ps)
@@ -243,39 +228,36 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	return blockCount, nil
 }
 
+// SaveAnchorsIntoFactom submits Factom entries (anchor records) for all newly confirmed contract txs found during the SynchronizationLoop
 func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
-	fmt.Println("SaveAnchorsIntoFactom")
+	fmt.Println("\nSaveAnchorsIntoFactom():")
 	ps, err := dbo.FetchProgramState()
 	if err != nil {
-		fmt.Println("error checking progam state")
 		return err
 	}
 	// This mutex could probably be reworked to prevent a short time span of a race here between fetch and lock
 	ps.ProgramStateMutex.Lock()
 	defer ps.ProgramStateMutex.Unlock()
+
 	anchorData, err := dbo.FetchAnchorDataHead()
 	if err != nil {
-		fmt.Println("error fetching anchor data head")
 		return err
 	}
 	if anchorData == nil {
 		anchorData, err = dbo.FetchAnchorData(0)
 		if err != nil {
-			fmt.Println("error FetchAnchorData")
 			return err
 		}
 		if anchorData == nil {
-			//nothing found
+			// nothing found
 			return nil
 		}
 	}
 
 	// Try to submit as many as 10 anchor records/receipts into Factom
 	for i := 0; i < 10; {
-		// Only anchor records that haven't been anchored before
-		// Check that the anchor tx was confirmed on other blockchain, and that we haven't recorded that tx's receipt in Factom yet
-		// Factom Entry Hash has to be empty and Ethereum TxID must not be empty
-		if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "" {
+		// Check that the anchor tx was confirmed on Ethereum, and that we haven't recorded that tx's receipt in Factom yet
+		if anchorData.Ethereum.BlockHash != "" && anchorData.EthereumRecordEntryHash == "" {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
@@ -296,7 +278,7 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			}
 			anchorData.EthereumRecordEntryHash = tx
 
-			//Resetting AnchorRecord
+			// Resetting AnchorRecord
 			anchorRecord.Ethereum = nil
 
 			err = dbo.InsertAnchorData(anchorData, false)
@@ -319,11 +301,15 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-// Takes care of sending the entry to the Factom network, returns txID
+// CreateAndSendAnchor submits the anchor record entry to the Factom network and returns the txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Sending anchor record to Factom: %v\n", ar)
 	if ar.Ethereum != nil {
-		txID, err := submitEntryToAnchorChain(ar, EthereumAnchorChainID)
+		entry, err := CreateAnchorEntry(ar, EthereumAnchorChainID, ServerPrivKey)
+		if err != nil {
+			return "", err
+		}
+		_, txID, err := JustFactomize(entry)
 		if err != nil {
 			return "", err
 		}
@@ -332,21 +318,8 @@ func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	return "", nil
 }
 
-// Construct the entry and submit it to the server
-func submitEntryToAnchorChain(aRecord *anchor.AnchorRecord, chainID interfaces.IHash) (string, error) {
-	entry, err := CreateAnchorEntry(aRecord, chainID, ServerPrivKey)
-	if err != nil {
-		return "", err
-	}
-
-	_, txID, err := JustFactomize(entry)
-	if err != nil {
-		return "", err
-	}
-
-	return txID, err
-}
-
+// CreateAnchorEntry constructs and returns a new entry with the anchor record as the Content
+// and the server's signature of the anchor record as the only External ID
 func CreateAnchorEntry(aRecord *anchor.AnchorRecord, chainID interfaces.IHash, serverPrivKey *primitives.PrivateKey) (*entryBlock.Entry, error) {
 	record, sig, err := aRecord.MarshalAndSignV2(ServerPrivKey)
 	if err != nil {
@@ -361,6 +334,7 @@ func CreateAnchorEntry(aRecord *anchor.AnchorRecord, chainID interfaces.IHash, s
 	return entry, nil
 }
 
+// JustFactomizeChain creates and submits a new chain using the given EntryBlock Entry and returns the txID of the commit and reveal
 func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
 	//fmt.Printf("Entry - %v\n", entry)
@@ -376,23 +350,20 @@ func JustFactomizeChain(entry *entryBlock.Entry) (string, string, error) {
 
 	chain := factom.NewChain(e)
 
-	//Commit and reveal
+	// Commit and reveal
 	tx1, err := factom.CommitChain(chain, ECAddress)
 	if err != nil {
-		fmt.Println("Entry commit error : ", err)
-		return "", "", err
+		return "", "", fmt.Errorf("chain commit error: %v", err)
 	}
-
 	time.Sleep(10 * time.Second)
 	tx2, err := factom.RevealChain(chain)
 	if err != nil {
-		fmt.Println("Entry reveal error : ", err)
-		return "", "", err
+		return "", "", fmt.Errorf("chain reveal error: %v", err)
 	}
-
 	return tx1, tx2, nil
 }
 
+// JustFactomize creates and submits a new entry using the given EntryBlock Entry and returns the txID of the commit and reveal
 func JustFactomize(entry *entryBlock.Entry) (string, string, error) {
 	//Convert entryBlock Entry into factom Entry
 	//fmt.Printf("Entry - %v\n", entry)
@@ -406,25 +377,36 @@ func JustFactomize(entry *entryBlock.Entry) (string, string, error) {
 		return "", "", err
 	}
 
-	//Commit and reveal
+	// Commit and reveal
 	tx1, err := factom.CommitEntry(e, ECAddress)
 	if err != nil {
-		fmt.Println("Entry commit error : ", err)
-		return "", "", err
+		return "", "", fmt.Errorf("entry commit error: %v", err)
 	}
-
 	time.Sleep(3 * time.Second)
 	tx2, err := factom.RevealEntry(e)
 	if err != nil {
-		fmt.Println("Entry reveal error : ", err)
-		return "", "", err
+		return "", "", fmt.Errorf("entry reveal error: %v", err)
 	}
-
 	return tx1, tx2, nil
 }
 
+// CheckFactomBalance returns the current factoid and entry credit balances of the addresses specified in the config file
+func CheckFactomBalance() (int64, int64, error) {
+	ecBalance, err := api.GetECBalance(ServerECKey.PublicKeyString())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	fBalance, err := api.GetFactoidBalance(ServerPrivKey.PublicKeyString())
+	if err != nil {
+		return 0, 0, err
+	}
+	return fBalance, ecBalance, nil
+}
+
+// TopupECAddress buys the amount of entry credits specified in the config file's ECBalanceThreshold
 func TopupECAddress() error {
-	fmt.Printf("TopupECAddress\n")
+	fmt.Println("TopupECAddress():")
 	w, err := wallet.NewMapDBWallet()
 	if err != nil {
 		return err
@@ -466,8 +448,7 @@ func TopupECAddress() error {
 
 	fmt.Printf("Topup tx - %v\n", tx)
 
-	for i := 0; ; i++ {
-		i = i % 3
+	for i := 0; ; i = (i + 1) % 3 {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx.TxID, "")
 		if err != nil {
@@ -487,9 +468,7 @@ func TopupECAddress() error {
 		if ack.Status != "DBlockConfirmed" {
 			continue
 		}
-
 		fmt.Printf("Topup ack - %v\n", str)
-
 		break
 	}
 
@@ -498,12 +477,14 @@ func TopupECAddress() error {
 		return err
 	}
 	if ecBalance < ECBalanceThreshold {
-		return fmt.Errorf("Balance was not increased!")
+		return fmt.Errorf("entry credit balance was not increased")
 	}
 
 	return nil
 }
 
+// CreateFirstEthereumAnchorEntry creates and returns the first entry in the Ethereum Anchor Chain
+// but does not submit it to the Factom network
 func CreateFirstEthereumAnchorEntry() *entryBlock.Entry {
 	answer := new(entryBlock.Entry)
 

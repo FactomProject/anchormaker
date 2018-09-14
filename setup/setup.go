@@ -13,18 +13,36 @@ import (
 	"github.com/FactomProject/factomd/common/primitives"
 )
 
+// Setup checks that FCT/EC balances are high enough and that a dedicated chain for Ethereum anchor records has been created
+func Setup(c *config.AnchorConfig) error {
+	fmt.Println("Setting the server up...")
+
+	err := CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, c.Factom.ECBalanceThreshold/10)
+	if err != nil {
+		return err
+	}
+
+	err = CheckAndCreateEthereumAnchorChain()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Setup complete!\n")
+	return nil
+}
+
+// CheckAndTopupBalances checks current FCT/EC balances against their thresholds, and buys more EC if necessary
 func CheckAndTopupBalances(ecBalanceThreshold, fBalanceThreshold, minimumECBalance int64) error {
 	fBalance, ecBalance, err := anchorFactom.CheckFactomBalance()
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Balances - %v, %v\n", fBalance, ecBalance)
+	fmt.Printf("Balances - %v FCT, %v EC\n", fBalance, ecBalance)
 
 	if ecBalance < ecBalanceThreshold {
 		if fBalance < fBalanceThreshold {
 			if ecBalance < minimumECBalance {
-				return fmt.Errorf("EC and F Balances are too low, can't do anything!\n")
+				return fmt.Errorf("EC and FCT Balances are too low, can't do anything!\n")
 			} else {
 				return nil
 			}
@@ -38,26 +56,8 @@ func CheckAndTopupBalances(ecBalanceThreshold, fBalanceThreshold, minimumECBalan
 	return nil
 }
 
-func Setup(c *config.AnchorConfig) error {
-	fmt.Printf("Setting the server up...\n")
-
-	err := CheckAndTopupBalances(c.Factom.ECBalanceThreshold, c.Factom.FactoidBalanceThreshold, c.Factom.ECBalanceThreshold/10)
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		return err
-	}
-
-	err = CheckAndCreateEthereumAnchorchain()
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		return err
-	}
-
-	fmt.Printf("Setup complete!\n")
-	return nil
-}
-
-func CheckAndCreateEthereumAnchorchain() error {
+// CheckAndCreateEthereumAnchorChain checks that the Ethereum anchor chain exists, and creates it if not
+func CheckAndCreateEthereumAnchorChain() error {
 	anchor := anchorFactom.CreateFirstEthereumAnchorEntry()
 	chainID := anchor.GetChainID()
 
@@ -86,19 +86,16 @@ func CreateChain(e *entryBlock.Entry) error {
 		return err
 	}
 
-	fmt.Printf("Created chain %v - %v, %v\n", e.GetChainID(), tx1, tx2)
+	fmt.Printf("Created Ethereum Anchor Chain at %v with txIDs %v, %v\n", e.GetChainID(), tx1, tx2)
 
-	for i := 0; ; i++ {
-		i = i % 3
+	for i := 0; ; i = (i + 1) % 3 {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx1, "")
 		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
 			return err
 		}
 		str, err := primitives.EncodeJSONString(ack)
 		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
 			return err
 		}
 		fmt.Printf("ack1 - %v", str)
@@ -111,22 +108,18 @@ func CreateChain(e *entryBlock.Entry) error {
 			continue
 		}
 		fmt.Printf("ack1 - %v\n", str)
-
 		break
 	}
 
-	for i := 0; ; i++ {
-		i = i % 3
+	for i := 0; ; i = (i + 1) % 3 {
 		time.Sleep(5 * time.Second)
 		ack, err := factom.FactoidACK(tx2, "")
 		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
 			return err
 		}
 
 		str, err := primitives.EncodeJSONString(ack)
 		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
 			return err
 		}
 		fmt.Printf("ack2 - %v", str)
@@ -138,9 +131,7 @@ func CreateChain(e *entryBlock.Entry) error {
 		if ack.Status != "DBlockConfirmed" {
 			continue
 		}
-
 		fmt.Printf("ack2 - %v\n", str)
-
 		break
 	}
 

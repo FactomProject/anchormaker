@@ -32,13 +32,11 @@ func GetECBalance(ecPublicKey string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	//fmt.Printf("GetECBalance %v, %v\n", ecPublicKey, ecAddress)
 
 	balance, err := factom.GetECBalance(ecAddress)
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("GetECBalance %v, %v - %v\n", ecPublicKey, ecAddress, balance)
 	return balance, nil
 }
 
@@ -47,14 +45,11 @@ func GetFactoidBalance(factoidPublicKey string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	//fmt.Printf("GetFactoidBalance %v, %v\n", factoidPublicKey, fAddress)
 
 	balance, err := factom.GetFactoidBalance(fAddress)
 	if err != nil {
 		return 0, err
 	}
-
-	fmt.Printf("GetFactoidBalance %v, %v - %v\n", factoidPublicKey, fAddress, balance)
 	return balance, nil
 }
 
@@ -92,7 +87,6 @@ func GetDBlockByHeight(height uint32) (interfaces.IDirectoryBlock, error) {
 	}
 	return dblock, nil
 }
-
 
 // TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package when creating factomd "anchor" RPC call
 // GetMerkleRootOfDBlockWindow calculates a Merkle root for all Directory Blocks in the specified range (inclusive)
@@ -185,8 +179,7 @@ func GetDBlockHead() (string, error) {
 
 	return factom.GetDBlockHead()
 
-	resp, err := http.Get(
-		fmt.Sprintf("http://%s/v1/directory-block-head/", server))
+	resp, err := http.Get(fmt.Sprintf("http://%s/v1/directory-block-head/", server))
 	if err != nil {
 		return "", err
 	}
@@ -213,8 +206,7 @@ func GetRaw(keymr string) ([]byte, error) {
 	return factom.GetRaw(keymr)
 
 	fmt.Printf("GetRaw %v\n", keymr)
-	resp, err := http.Get(
-		fmt.Sprintf("http://%s/v1/get-raw-data/%s", server, keymr))
+	resp, err := http.Get(fmt.Sprintf("http://%s/v1/get-raw-data/%s", server, keymr))
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +228,5 @@ func GetRaw(keymr string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return raw, nil
 }
