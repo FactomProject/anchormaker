@@ -32,15 +32,6 @@ type AnchorConfig struct {
 		AnchorSigPublicKey  []string
 		ConfirmationsNeeded int
 	}
-	Bitcoin struct {
-		BTCAddress       string
-		BTCFee           float64
-		MinConfirmations int64
-		WalletPassphrase string
-		RPCAddress       string
-		RPCUser          string
-		RPCPass          string
-	}
 	Ethereum struct {
 		WalletAddress        string
 		WalletPassword       string
@@ -98,18 +89,6 @@ FactomdAddress						= "localhost:8088"
 WalletAddress						= "localhost:8089"
 FactoidBalanceThreshold				= 100
 ECBalanceThreshold					= 10000
-
-; ------------------------------------------------------------------------------
-; Bitcoin settings
-; ------------------------------------------------------------------------------
-[bitcoin]
-BTCAddress 							= "mxnf2a9MfEjvkjS4zL7efoWSgbZe5rMn1m"
-BTCFee 								= 0.0002
-MinConfirmations 					= 1
-WalletPassphrase 					= "password"
-RPCAddress							= "http://localhost:18332/"
-RPCUser								= "user"
-RPCPass								= "pass"
 
 ; ------------------------------------------------------------------------------
 ; Ethereum settings

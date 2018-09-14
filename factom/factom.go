@@ -30,20 +30,12 @@ var ECAddress *factom.ECAddress
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
 
-//df3ade9eec4b08d5379cc64270c30ea7315d8a8a1a69efe2b98a60ecdd69e604
-var BitcoinAnchorChainID interfaces.IHash
-
 //6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
 var EthereumAnchorChainID interfaces.IHash
 
-var FirstBitcoinAnchorChainEntryHash interfaces.IHash
 var FirstEthereumAnchorChainEntryHash interfaces.IHash
 
 func init() {
-	/*e := CreateFirstBitcoinAnchorEntry()
-	BitcoinAnchorChainID = e.ChainID
-	FirstBitcoinAnchorChainEntryHash = e.GetHash()*/
-
 	e := CreateFirstEthereumAnchorEntry()
 	EthereumAnchorChainID = e.ChainID
 	FirstEthereumAnchorChainEntryHash = e.GetHash()
@@ -135,8 +127,8 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
-			//Looking for Bitcoin and Ethereum anchors
-			if /*v.GetChainID().String() == BitcoinAnchorChainID.String() ||*/ v.GetChainID().String() == EthereumAnchorChainID.String() {
+			//Looking for Ethereum anchor record
+			if v.GetChainID().String() == EthereumAnchorChainID.String() {
 				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
 				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
 				if err != nil {
@@ -147,7 +139,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						continue
 					}
 					//fmt.Printf("\t%v\n", eh.String())
-					if /*eh.String() == FirstBitcoinAnchorChainEntryHash.String() ||*/ eh.String() == FirstEthereumAnchorChainEntryHash.String() {
+					if eh.String() == FirstEthereumAnchorChainEntryHash.String() {
 						continue
 					}
 					//fmt.Printf("Fetching %v\n", eh.String())
@@ -197,18 +189,6 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						}
 					}
 
-					/*if ar.Bitcoin != nil {
-						fmt.Printf("Found Bitcoin Anchor Record in %v - %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
-						anchorData.Bitcoin.Address = ar.Bitcoin.Address
-						anchorData.Bitcoin.TXID = ar.Bitcoin.TXID
-						anchorData.Bitcoin.BlockHeight = int64(ar.Bitcoin.BlockHeight)
-						anchorData.Bitcoin.BlockHash = ar.Bitcoin.BlockHash
-						anchorData.Bitcoin.Offset = int64(ar.Bitcoin.Offset)
-
-						anchorData.BitcoinRecordHeight = dBlock.GetDatabaseHeight()
-						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
-						anchorData.BitcoinRecordEntryHash = eh.String()
-					}*/
 					if ar.Ethereum != nil {
 						fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
 						anchorData.Ethereum.Address = ar.Ethereum.Address
@@ -294,7 +274,8 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 	for i := 0; i < 10; {
 		// Only anchor records that haven't been anchored before
 		// Check that the anchor tx was confirmed on other blockchain, and that we haven't recorded that tx's receipt in Factom yet
-		if (anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "") || (anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "") {
+		// Factom Entry Hash has to be empty and Ethereum TxID must not be empty
+		if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "" {
 			anchorRecord := new(anchor.AnchorRecord)
 			anchorRecord.AnchorRecordVer = 1
 			anchorRecord.DBHeight = anchorData.DBlockHeight
@@ -302,47 +283,21 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 			anchorRecord.KeyMR = anchorData.MerkleRoot
 			anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked + 1
 
-			//Bitcoin anchor
-			//Factom Entry Hash has to be empty and Bitcoin TxID must not be empty
-			/*if anchorData.BitcoinRecordEntryHash == "" && anchorData.Bitcoin.BlockHash != "" {
-				anchorRecord.Bitcoin = new(anchor.BitcoinStruct)
+			anchorRecord.Ethereum = new(anchor.EthereumStruct)
+			anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
+			anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
+			anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
+			anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
+			anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
 
-				anchorRecord.Bitcoin.Address = anchorData.Bitcoin.Address
-				anchorRecord.Bitcoin.TXID = anchorData.Bitcoin.TXID
-				anchorRecord.Bitcoin.BlockHeight = int32(anchorData.Bitcoin.BlockHeight)
-				anchorRecord.Bitcoin.BlockHash = anchorData.Bitcoin.BlockHash
-				anchorRecord.Bitcoin.Offset = int32(anchorData.Bitcoin.Offset)
-
-				tx, err := CreateAndSendAnchor(anchorRecord)
-				if err != nil {
-					fmt.Println("error in CreateAndSendAnchor")
-					return err
-				}
-				anchorData.BitcoinRecordEntryHash = tx
-				//Resetting AnchorRecord
-				anchorRecord.Bitcoin = nil
-			}*/
-
-			//Ethereum anchor
-			//Factom Entry Hash has to be empty and Ethereum TxID must not be empty
-			if anchorData.EthereumRecordEntryHash == "" && anchorData.Ethereum.BlockHash != "" {
-				anchorRecord.Ethereum = new(anchor.EthereumStruct)
-
-				anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
-				anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
-				anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
-				anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
-				anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
-
-				tx, err := CreateAndSendAnchor(anchorRecord)
-				if err != nil {
-					return err
-				}
-				anchorData.EthereumRecordEntryHash = tx
-
-				//Resetting AnchorRecord
-				anchorRecord.Ethereum = nil
+			tx, err := CreateAndSendAnchor(anchorRecord)
+			if err != nil {
+				return err
 			}
+			anchorData.EthereumRecordEntryHash = tx
+
+			//Resetting AnchorRecord
+			anchorRecord.Ethereum = nil
 
 			err = dbo.InsertAnchorData(anchorData, false)
 			if err != nil {
@@ -367,13 +322,6 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 // Takes care of sending the entry to the Factom network, returns txID
 func CreateAndSendAnchor(ar *anchor.AnchorRecord) (string, error) {
 	fmt.Printf("Sending anchor record to Factom: %v\n", ar)
-	/*if ar.Bitcoin != nil {
-		txID, err := submitEntryToAnchorChain(ar, BitcoinAnchorChainID)
-		if err != nil {
-			return "", err
-		}
-		return txID, nil
-	}*/
 	if ar.Ethereum != nil {
 		txID, err := submitEntryToAnchorChain(ar, EthereumAnchorChainID)
 		if err != nil {
@@ -554,47 +502,6 @@ func TopupECAddress() error {
 	}
 
 	return nil
-}
-
-/*
-
-func saveToAnchorChain(dirBlockInfo *common.DirBlockInfo) {
-	anchorLog.Debug("in saveToAnchorChain")
-	anchorRec := new(AnchorRecord)
-	anchorRec.AnchorRecordVer = 1
-	anchorRec.DBHeight = dirBlockInfo.DBHeight
-	anchorRec.KeyMR = dirBlockInfo.DBMerkleRoot.String()
-	_, recordHeight, _ := db.FetchBlockHeightCache()
-	anchorRec.RecordHeight = uint32(recordHeight + 1) // need the next block height
-	if defaultAddress != nil {
-		anchorRec.Bitcoin.Address = defaultAddress.String()
-	}
-	anchorRec.Bitcoin.TXID = dirBlockInfo.BTCTxHash.BTCString()
-	anchorRec.Bitcoin.BlockHeight = dirBlockInfo.BTCBlockHeight
-	anchorRec.Bitcoin.BlockHash = dirBlockInfo.BTCBlockHash.BTCString()
-	anchorRec.Bitcoin.Offset = dirBlockInfo.BTCTxOffset
-	anchorLog.Info("before submitting Entry To AnchorChain. anchor.record: " + spew.Sdump(anchorRec))
-
-	err := submitEntryToAnchorChain(anchorRec)
-	if err != nil {
-		anchorLog.Error("Error in writing anchor into anchor chain: ", err.Error())
-	}
-}
-
-
-
-
-*/
-
-func CreateFirstBitcoinAnchorEntry() *entryBlock.Entry {
-	answer := new(entryBlock.Entry)
-
-	answer.Version = 0
-	answer.ExtIDs = []primitives.ByteSlice{primitives.ByteSlice{Bytes: []byte("FactomAnchorChain")}}
-	answer.Content = primitives.ByteSlice{Bytes: []byte("This is the Factom anchor chain, which records the anchors Factom puts on Bitcoin and other networks.\n")}
-	answer.ChainID = entryBlock.NewChainID(answer)
-
-	return answer
 }
 
 func CreateFirstEthereumAnchorEntry() *entryBlock.Entry {

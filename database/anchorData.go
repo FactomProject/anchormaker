@@ -66,9 +66,7 @@ func (c *AnchorData) IsSubmitted() bool {
 }
 
 func (c *AnchorData) IsComplete() bool {
-	//return (c.BitcoinRecordHeight > 0)
-	return (c.EthereumRecordHeight > 0)
-	//return (c.BitcoinRecordHeight > 0) && (c.EthereumRecordHeight > 0)
+	return c.EthereumRecordHeight > 0
 }
 
 func (c *AnchorData) New() interfaces.BinaryMarshallableAndCopyable {

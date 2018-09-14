@@ -13,7 +13,6 @@ import (
 var ProgramStateStr []byte = []byte("ProgramState")
 
 type ProgramStateBase struct {
-	LastBitcoinBlockChecked       string
 	LastEthereumBlockChecked      int64
 	LastFactomDBlockHeightChecked uint32
 	//a map holding pending eth transactions

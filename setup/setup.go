@@ -47,12 +47,6 @@ func Setup(c *config.AnchorConfig) error {
 		return err
 	}
 
-	/*err = CheckAndCreateBitcoinAnchorChain()
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		return err
-	}*/
-
 	err = CheckAndCreateEthereumAnchorchain()
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
@@ -60,29 +54,6 @@ func Setup(c *config.AnchorConfig) error {
 	}
 
 	fmt.Printf("Setup complete!\n")
-	return nil
-}
-
-func CheckAndCreateBitcoinAnchorChain() error {
-	anchor := anchorFactom.CreateFirstBitcoinAnchorEntry()
-	chainID := anchor.GetChainID()
-
-	head, err := factom.GetChainHead(chainID.String())
-	if err != nil {
-		if err.Error() != "Missing Chain Head" {
-			return err
-		}
-	}
-	if head != "" {
-		//Chain already exists, nothing to create!
-		return nil
-	}
-
-	err = CreateChain(anchor)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
