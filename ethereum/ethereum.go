@@ -32,7 +32,6 @@ var justConnectedToNet = true
 
 var conn *ethclient.Client
 var factomAnchor *FactomAnchor
-var endOfBacklogHeight uint32
 
 func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
@@ -108,8 +107,23 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 				continue
 			}
 		}
+		if ad.MerkleRoot == "" {
+			// Calculate Merkle root that should be in the anchor record
+			hi := ad.DBlockHeight
+			var lo uint32
+			if hi < 999 {
+				lo = 0
+			} else {
+				lo = hi - 999
+			}
+			merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+			if err != nil {
+				return 0, err
+			}
+			ad.MerkleRoot = merkleRoot.String()
+		}
 		if ad.MerkleRoot != merkleRoot {
-			fmt.Printf("Merkle Root from database != one found in Ethereum contract - %v vs %v\n", ad.MerkleRoot, merkleRoot)
+			fmt.Printf("Merkle Root for DBlock %d from database != one found in Ethereum contract - %v vs %v\n", ad.DBlockHeight, ad.MerkleRoot, merkleRoot)
 			continue
 		}
 		if ad.EthereumRecordHeight > 0 {
@@ -171,25 +185,16 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	} else {
 		dblocklo = dblockhi - windowSize + 1
 	}
-	if endOfBacklogHeight == 0 {
-		endOfBacklogHeight = dblockhi
-	}
 	_, _, err = AnchorBlockWindow(dbo, dblocklo, dblockhi)
 	if err != nil {
 		return err
 	}
 
-	// Check if the anchor we just submitted will cover the entire backlog
-	if dblockhi < windowSize - 1 {
-		return nil
-	}
-
-	// Now try to anchor some of the block windows from the backlog
+	// Get the AnchorData head (the highest complete AnchorData record, no anchoring holes before this point)
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		return err
 	}
-
 	if ad == nil {
 		// We haven't anchored any of the backlog, start with the first 1000 block window
 		dblocklo = 0
@@ -200,16 +205,31 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		dblockhi = dblocklo + windowSize - 1
 	}
 
+	// Try to submit up to 10 anchors in the backlog
 	for i := 0; i < 10; {
+		// Find the next highest AnchorData we have submitted to Ethereum
+		// and check if we need to submit another anchor to close the gap more
+		adNext, err := dbo.FetchNextHighestAnchorDataSubmitted(dblocklo)
+		if err != nil {
+			return err
+		}
+		if adNext == nil {
+			// There was no AnchorData submitted for a block height higher than dblocklo
+			return nil
+		}
+		if dblocklo >= adNext.DBlockHeight - windowSize + 1 {
+			// There is no gap between the AnchorData head and the next AnchorData submitted
+			// We must be all caught up on this section
+			return nil
+		}
+
 		done, skip, err := AnchorBlockWindow(dbo, dblocklo, dblockhi)
 		if err != nil {
 			return err
 		}
 		dblocklo += windowSize
 		dblockhi += windowSize
-		if dblockhi >= endOfBacklogHeight {
-			return nil // We're all caught up to the present
-		}
+
 		if done == true {
 			return nil
 		}

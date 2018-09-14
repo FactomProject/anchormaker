@@ -171,6 +171,21 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					if err != nil {
 						return 0, err
 					}
+					if anchorData.MerkleRoot == "" {
+						// Calculate Merkle root that should be in the anchor record
+						hi := ar.DBHeight
+						var lo uint32
+						if hi < 999 {
+							lo = 0
+						} else {
+							lo = hi - 999
+						}
+						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+						if err != nil {
+							return 0, err
+						}
+						anchorData.MerkleRoot = merkleRoot.String()
+					}
 					if anchorData.MerkleRoot != ar.KeyMR {
 						if IgnoreWrongEntries == false {
 							fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
@@ -232,17 +247,17 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		currentHeadHeight = dBlock.GetDatabaseHeight()
 
-		err = dbo.UpdateAnchorDataHead()
-		if err != nil {
-			return 0, err
-		}
-
 		ps.LastFactomDBlockHeightChecked = currentHeadHeight
 
 		err = dbo.InsertProgramState(ps)
 		if err != nil {
 			return 0, err
 		}
+	}
+
+	err = dbo.UpdateAnchorDataHead()
+	if err != nil {
+		return 0, err
 	}
 
 	return blockCount, nil

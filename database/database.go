@@ -84,6 +84,27 @@ func (db *AnchorDatabaseOverlay) FetchAnchorData(dbHeight uint32) (*AnchorData, 
 	return data.(*AnchorData), nil
 }
 
+func (db *AnchorDatabaseOverlay) FetchNextHighestAnchorDataSubmitted(height uint32) (*AnchorData, error) {
+	ps, err := db.FetchProgramState()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := height; i < ps.LastFactomDBlockHeightChecked; i++ {
+		ad, err := db.FetchAnchorData(i)
+		if err != nil {
+			return nil, err
+		}
+		if ad == nil {
+			break
+		}
+		if ad.IsSubmitted() {
+			return ad, nil
+		}
+	}
+	return nil, nil
+}
+
 func (db *AnchorDatabaseOverlay) FetchAnchorDataHead() (*AnchorData, error) {
 	ad := new(AnchorData)
 	block, err := db.FetchChainHeadByChainID(AnchorDataStr, ad.GetChainID(), ad)
@@ -108,19 +129,30 @@ func (db *AnchorDatabaseOverlay) UpdateAnchorDataHead() error {
 	} else {
 		nextCheck = ad.DBlockHeight + 1
 	}
-	fmt.Printf("\nnextCheck - %v\n", nextCheck)
+	fmt.Printf("Starting anchor completion check at DBlock height - %v\n", nextCheck)
 	head := ad
 	for {
-		ad, err = db.FetchAnchorData(nextCheck)
-		if err != nil {
-			return err
+		// Check if there is a complete window of 1000 blocks
+		completeWindow := false
+		for i := nextCheck; i < nextCheck + 1000; i++ {
+			ad, err = db.FetchAnchorData(i)
+			if err != nil {
+				return err
+			}
+			if ad == nil {
+				break
+			}
+			if ad.IsComplete() {
+				fmt.Printf("%v is complete\n", nextCheck)
+				head = ad
+				completeWindow = true
+				nextCheck = i
+				break
+			}
 		}
-		if ad.IsComplete() {
-			fmt.Printf("%v is complete\n", nextCheck)
-			head = ad
-		} else {
-			fmt.Printf("%v is not complete\n", nextCheck)
-			//First AnchorData that is not complete ends the chain
+		if !completeWindow {
+			// First incomplete window breaks the loop
+			fmt.Printf("Incomplete window starting at dblock %v\n", nextCheck)
 			break
 		}
 		nextCheck++
