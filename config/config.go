@@ -31,6 +31,7 @@ type AnchorConfig struct {
 		ServerECKey         string
 		AnchorSigPublicKey  []string
 		ConfirmationsNeeded int
+		WindowSize          uint32
 	}
 	Ethereum struct {
 		WalletAddress        string
@@ -79,6 +80,7 @@ ServerECKey							= 2d9afb9b073394863786d660b8960aa827a3d713e0a400e116d373874429
 ; ServerECKey						= 397c49e182caa97737c6b394591c614156fbe7998d7bf5d76273961e9fa1edd406ed9e69bfdf85db8aa69820f348d096985bc0b11cc9fc9dcee3b8c68b41dfd5
 AnchorSigPublicKey					= 0426a802617848d4d16d87830fc521f4d136bb2d0c352850919c2679f189613a
 ConfirmationsNeeded					= 20
+WindowSize                          = 1000
 
 ; ------------------------------------------------------------------------------
 ; Factom settings

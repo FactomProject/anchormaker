@@ -22,6 +22,7 @@ import (
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
 
+var WindowSize uint32
 var WalletAddress string
 var WalletPassword string
 var ContractAddress string
@@ -34,6 +35,7 @@ var conn *ethclient.Client
 var factomAnchor *FactomAnchor
 
 func LoadConfig(c *config.AnchorConfig) {
+	WindowSize = c.Anchor.WindowSize
 	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
 	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
@@ -111,14 +113,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		if ad.MerkleRoot == "" {
 			// Calculate Merkle root that should be in the anchor record
-			hi := ad.DBlockHeight
-			var lo uint32
-			if hi < 999 {
-				lo = 0
-			} else {
-				lo = hi - 999
-			}
-			merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+			merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ad.DBlockHeight, 1000)
 			if err != nil {
 				return 0, err
 			}
@@ -181,18 +176,15 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 
-	// First, anchor a merkle root of the newest 1000 blocks (change windowSize for testing purposes)
-	windowSize := uint32(1000)
-	dblockhi := ps.LastFactomDBlockHeightChecked
-	var dblocklo uint32
-	if dblockhi < windowSize - 1 {
-		dblocklo = 0
-	} else {
-		dblocklo = dblockhi - windowSize + 1
-	}
-	_, _, err = AnchorBlockWindow(dbo, dblocklo, dblockhi)
+	// First, anchor a merkle root of the newest 1000 blocks
+	height := ps.LastFactomDBlockHeightChecked
+	_, _, err = AnchorBlockWindow(dbo, height, WindowSize)
 	if err != nil {
 		return err
+	}
+	if height < WindowSize {
+		// We cover the whole backlog with this transaction, no need to submit more
+		return nil
 	}
 
 	// Get the AnchorData head (the highest complete AnchorData record, no anchoring holes before this point)
@@ -202,38 +194,35 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	}
 	if ad == nil {
 		// We haven't anchored any of the backlog, start with the first 1000 block window
-		dblocklo = 0
-		dblockhi = windowSize - 1
+		height = WindowSize - 1
 	} else {
 		// We've anchored some of the backlog, so move to the next 1000 block window
-		dblocklo = ad.DBlockHeight + 1
-		dblockhi = dblocklo + windowSize - 1
+		height = ad.DBlockHeight + WindowSize
 	}
 
 	// Try to submit up to 10 anchors in the backlog
 	for i := 0; i < 10; {
 		// Find the next highest AnchorData we have submitted to Ethereum
 		// and check if we need to submit another anchor to close the gap more
-		adNext, err := dbo.FetchNextHighestAnchorDataSubmitted(dblocklo)
+		adNext, err := dbo.FetchNextHighestAnchorDataSubmitted(height - WindowSize + 1)
 		if err != nil {
 			return err
 		}
 		if adNext == nil {
-			// There was no AnchorData submitted for a block height higher than dblocklo
+			// There was no AnchorData submitted for a block height higher than (height - windowSize + 1)
 			return nil
 		}
-		if dblocklo >= adNext.DBlockHeight - windowSize + 1 {
+		if height >= adNext.DBlockHeight {
 			// There is no gap between the AnchorData head and the next AnchorData submitted
 			// We must be all caught up on this section
 			return nil
 		}
 
-		done, skip, err := AnchorBlockWindow(dbo, dblocklo, dblockhi)
+		done, skip, err := AnchorBlockWindow(dbo, height, WindowSize)
 		if err != nil {
 			return err
 		}
-		dblocklo += windowSize
-		dblockhi += windowSize
+		height += WindowSize
 
 		if done == true {
 			return nil
@@ -247,11 +236,11 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
-// AnchorBlockWindow creates a Merkle root of all Directory Blocks from height lo to hi, and then submits that MR to Ethereum.
+// AnchorBlockWindow creates a Merkle root of all Directory Blocks from height to (height - size + 1), and then submits that MR to Ethereum.
 // returns done when we're done anchoring
 // returns skip if we can skip anchoring this block
-func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, lo, hi uint32) (done bool, skip bool, err error) {
-	ad, err := dbo.FetchAnchorData(hi)
+func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32) (done bool, skip bool, err error) {
+	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
 		done = true
 		skip = false
@@ -270,18 +259,18 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, lo, hi uint32) (done
 
 	time.Sleep(5 * time.Second)
 
-	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(height, size)
 	if err != nil {
 		return true, false, err
 	}
 
-	tx, err := SendAnchor(int64(hi), merkleRoot.String())
+	tx, err := SendAnchor(int64(height), merkleRoot.String())
 	if err != nil {
 		done = false
 		skip = true
 		return
 	}
-	fmt.Printf("Submitted Ethereum Anchor for DBlocks %v to %v\n", lo, hi)
+	fmt.Printf("Submitted Ethereum Anchor for DBlocks %v to %v\n", height - size + 1, height)
 
 	ad.MerkleRoot = merkleRoot.String()
 	ad.Ethereum.TXID = tx

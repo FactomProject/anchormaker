@@ -89,8 +89,15 @@ func GetDBlockByHeight(height uint32) (interfaces.IDirectoryBlock, error) {
 }
 
 // TODO: move calculation of the Merkle root for a window of blocks to a new function in factomd/primitives package when creating factomd "anchor" RPC call
-// GetMerkleRootOfDBlockWindow calculates a Merkle root for all Directory Blocks in the specified range (inclusive)
-func GetMerkleRootOfDBlockWindow(from, to uint32) (interfaces.IHash, error) {
+// GetMerkleRootOfDBlockWindow calculates a Merkle root for all Directory Blocks from height to (height - size + 1)
+func GetMerkleRootOfDBlockWindow(height, size uint32) (interfaces.IHash, error) {
+	to := height
+	var from uint32
+	if to < (size - 1) {
+		from = 0
+	} else {
+		from = height - size + 1
+	}
 	var dblockMRs []interfaces.IHash
 	for i := from; i <= to; i++ {
 		block, err := GetDBlockByHeight(uint32(i))

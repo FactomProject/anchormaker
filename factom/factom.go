@@ -20,13 +20,11 @@ import (
 )
 
 var IgnoreWrongEntries = true
-
+var WindowSize uint32
 var AnchorSigPublicKeys []interfaces.Verifier
-
 var ServerECKey *primitives.PrivateKey
 var ServerPrivKey *primitives.PrivateKey
 var ECAddress *factom.ECAddress
-
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
 
@@ -41,6 +39,8 @@ func init() {
 }
 
 func LoadConfig(c *config.AnchorConfig) {
+	WindowSize = c.Anchor.WindowSize
+
 	for _, v := range c.Anchor.AnchorSigPublicKey {
 		pubKey := new(primitives.PublicKey)
 		err := pubKey.UnmarshalText([]byte(v))
@@ -151,14 +151,7 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					if anchorData.MerkleRoot == "" {
 						// Calculate Merkle root that should be in the anchor record
-						hi := ar.DBHeight
-						var lo uint32
-						if hi < 999 {
-							lo = 0
-						} else {
-							lo = hi - 999
-						}
-						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(lo, hi)
+						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ar.DBHeight, WindowSize)
 						if err != nil {
 							return 0, err
 						}
