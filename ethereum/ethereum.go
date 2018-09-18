@@ -24,6 +24,7 @@ import (
 
 var WindowSize uint32
 var WalletAddress string
+var WalletKey string
 var WalletPassword string
 var ContractAddress string
 var GasLimit string
@@ -47,16 +48,21 @@ func LoadConfig(c *config.AnchorConfig) {
 	// Create IPC based RPC connection to the local node
 	conn, err = ethclient.Dial(c.Ethereum.GethIPCURL)
 	if err != nil {
-		fmt.Printf("Failed to connect to ethereum node over IPC: %v\n", err)
-		panic(err)
+		panic(fmt.Errorf("failed to connect to ethereum node over IPC: %v\n", err))
 	}
 
 	// Get an instance of the deployed smart contract
 	factomAnchor, err = NewFactomAnchor(common.HexToAddress(ContractAddress), conn)
 	if err != nil {
-		fmt.Printf("Failed to initialize FactomAnchor contract: %v\n", err)
-		panic(err)
+		panic(fmt.Errorf("failed to initialize FactomAnchor contract: %v\n", err))
 	}
+
+	// Load the WalletKey JSON from file
+	dat, err := ioutil.ReadFile(c.Ethereum.WalletKeyPath)
+	if err != nil {
+		panic(fmt.Errorf("failed to read file at WalletKeyPath (from config file): %v\n", err))
+	}
+	WalletKey = string(dat)
 }
 
 // SynchronizeEthereumData quickly checks for recently confirmed anchor events in our smart contract
@@ -266,45 +272,45 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32)
 }
 
 func SendAnchor(height int64, merkleRoot string) (string, error) {
-	gasInt, err := strconv.ParseInt(GasLimit, 10, 0)
+	// Prepare gas limit, gas price, and contract function call params
+	gasInt, err := strconv.ParseUint(GasLimit, 10, 0)
 	if err != nil {
 		fmt.Printf("error parsing GasLimit in config file - %v", err)
 		return "", err
 	}
 
-	var gasPrice int64
-	if gasPriceEstimates, err := GetGasPriceEstimates(EthGasStationAddress); err != nil {
+	var gasPrice *big.Int
+	gasPriceEstimates, err := GetGasPriceEstimates(EthGasStationAddress)
+	if err != nil {
 		fmt.Printf("Failed to get gas price estimates from %v\n", EthGasStationAddress)
 		fmt.Println("Defaulting gas price to 40 GWei")
-		gasPrice = 40000000000
+		gasPrice = big.NewInt(40000000000)
 	} else {
-		gasPrice = gasPriceEstimates.Fast.Int64()
+		gasPrice = gasPriceEstimates.Fast
 	}
 
-	data := "0x"
-	data += EthereumAPI.StringToMethodID("setAnchor(uint256,uint256)")
-	data += EthereumAPI.IntToData(height)
-	data += merkleRoot
+	merkleRootInt := new(big.Int)
+	merkleRootInt, ok := merkleRootInt.SetString(merkleRoot, 16)
+	if !ok {
+		return "", fmt.Errorf("failed to convert merkle root from string to big.Int: %s", merkleRoot)
+	}
 
-	tx := new(EthereumAPI.TransactionObject)
-	tx.From = WalletAddress
-	tx.To = ContractAddress
-
-	tx.Gas = EthereumAPI.IntToQuantity(gasInt)
-	tx.GasPrice = EthereumAPI.IntToQuantity(gasPrice)
-	tx.Data = data
-
-	fmt.Printf("Ethereum tx: %v\n", tx)
-
-	txHash, err := EthereumAPI.PersonalSendTransaction(tx, WalletPassword)
-
+	// Make function call to smart contract
+	auth, err := bind.NewTransactor(strings.NewReader(WalletKey), WalletPassword)
 	if err != nil {
-		fmt.Printf("failed to submit tx: %v\n", err)
-		return "", err
+		return "", fmt.Errorf("failed to create authorized transactor: %v", err)
 	}
-	fmt.Printf("Tx submitted with txHash: %v\n", txHash)
+	auth.GasPrice = gasPrice
+	auth.GasLimit = gasInt
 
-	return txHash, nil
+	tx, err := factomAnchor.SetAnchor(auth, big.NewInt(height), merkleRootInt)
+	if err != nil {
+		return "", fmt.Errorf("failed to call SetAnchor function: %v", err)
+	}
+	fmt.Printf("Ethereum tx: %v\n", tx)
+	fmt.Printf("Ethereum Tx submitted:\n----txHash: %v\n----nonce: %d\n", tx.Hash().String(), tx.Nonce())
+
+	return tx.Hash().String(), nil
 }
 
 /*

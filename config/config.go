@@ -35,6 +35,7 @@ type AnchorConfig struct {
 	}
 	Ethereum struct {
 		WalletAddress        string
+		WalletKeyPath        string
 		WalletPassword       string
 		ContractAddress      string
 		GasLimit             string
@@ -97,6 +98,7 @@ ECBalanceThreshold					= 10000
 ; ------------------------------------------------------------------------------
 [ethereum]
 WalletAddress						= "0x84964e1FfC60d0ad4DA803678b167c6A783A2E01"
+WalletKeyPath						= ""
 WalletPassword						= "password"
 ContractAddress 					= "0xd1932fe27273e0dc1a2fa5257c75811fd5555a1d"
 GasLimit							= "200000"
