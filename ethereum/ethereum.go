@@ -236,7 +236,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 // AnchorBlockWindow creates a Merkle root of all Directory Blocks from height to (height - size + 1), and then submits that MR to Ethereum.
 // returns done when we're done anchoring
 // returns skip if we can skip anchoring this block
-func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32, isMandatory bool) (*database.ProgramStatePendingTxInfo, error) {
+func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32, isMandatory bool) (*database.PendingTxInfo, error) {
 	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
 		return nil, err
@@ -269,7 +269,7 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32,
 		return nil, err
 	}
 
-	var pendingTx database.ProgramStatePendingTxInfo
+	var pendingTx database.PendingTxInfo
 	pendingTx.Nonce = tx.Nonce()
 	pendingTx.EthTxGasPrice = tx.GasPrice().Int64()
 	pendingTx.EthTxID = tx.Hash().String()
