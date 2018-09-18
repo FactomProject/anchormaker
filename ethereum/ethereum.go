@@ -113,7 +113,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		if ad.MerkleRoot == "" {
 			// Calculate Merkle root that should be in the anchor record
-			merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ad.DBlockHeight, 1000)
+			merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ad.DBlockHeight, WindowSize)
 			if err != nil {
 				return 0, err
 			}
@@ -124,6 +124,9 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			continue
 		}
 		if ad.EthereumRecordHeight > 0 {
+			continue
+		}
+		if ad.Ethereum.BlockHash != "" {
 			continue
 		}
 
@@ -143,11 +146,13 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	}
 
 	// Update the block to start at for the next synchronization loop
-	ps.LastEthereumBlockChecked = lastBlock + 1
-
-	err = dbo.InsertProgramState(ps)
-	if err != nil {
-		return 0, err
+	if ps.LastEthereumBlockChecked < lastBlock + 1 {
+		ps.LastEthereumBlockChecked = lastBlock + 1
+		fmt.Printf("lastethblock: %d\n", ps.LastEthereumBlockChecked)
+		err = dbo.InsertProgramState(ps)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return txCount, nil
@@ -176,61 +181,35 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 
-	// First, anchor a merkle root of the newest 1000 blocks
-	height := ps.LastFactomDBlockHeightChecked
-	_, _, err = AnchorBlockWindow(dbo, height, WindowSize)
-	if err != nil {
-		return err
-	}
-	if height < WindowSize {
-		// We cover the whole backlog with this transaction, no need to submit more
-		return nil
-	}
-
 	// Get the AnchorData head (the highest complete AnchorData record, no anchoring holes before this point)
 	ad, err := dbo.FetchAnchorDataHead()
 	if err != nil {
 		return err
 	}
+
+	// Determine what directory block height should be anchored next
+	var height uint32
 	if ad == nil {
-		// We haven't anchored any of the backlog, start with the first 1000 block window
-		height = WindowSize - 1
-	} else {
-		// We've anchored some of the backlog, so move to the next 1000 block window
+		// We haven't anchored anything yet
+		if ps.LastFactomDBlockHeightChecked < WindowSize {
+			// we can cover entire backlog with one tx, start with the latest block
+			height = ps.LastFactomDBlockHeightChecked
+		} else {
+			// we'll need multiple txs to cover backlog, start with the first 1000 block window
+			height = WindowSize - 1
+		}
+	} else if ad.DBlockHeight + WindowSize < ps.LastFactomDBlockHeightChecked {
+		// We've anchored some of the backlog already, but still have more to go.
+		// Move to the next 1000 block window
 		height = ad.DBlockHeight + WindowSize
+	} else {
+		// We've anchored some of the backlog already, but can now start to anchor at the most recent block
+		height = ps.LastFactomDBlockHeightChecked
 	}
 
-	// Try to submit up to 10 anchors in the backlog
-	for i := 0; i < 10; {
-		// Find the next highest AnchorData we have submitted to Ethereum
-		// and check if we need to submit another anchor to close the gap more
-		adNext, err := dbo.FetchNextHighestAnchorDataSubmitted(height - WindowSize + 1)
-		if err != nil {
-			return err
-		}
-		if adNext == nil {
-			// There was no AnchorData submitted for a block height higher than (height - windowSize + 1)
-			return nil
-		}
-		if height >= adNext.DBlockHeight {
-			// There is no gap between the AnchorData head and the next AnchorData submitted
-			// We must be all caught up on this section
-			return nil
-		}
-
-		done, skip, err := AnchorBlockWindow(dbo, height, WindowSize)
-		if err != nil {
-			return err
-		}
-		height += WindowSize
-
-		if done == true {
-			return nil
-		}
-		if skip == true {
-			continue
-		}
-		i++
+	_, _, err = AnchorBlockWindow(dbo, height, WindowSize)
+	if err != nil {
+		return err
 	}
 
 	return nil
