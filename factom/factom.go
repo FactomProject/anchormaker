@@ -179,6 +179,10 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
 						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
 						anchorData.EthereumRecordEntryHash = eh.String()
+
+						if ps.LastConfirmedAnchorDBlockHeight < anchorData.DBlockHeight {
+							ps.LastConfirmedAnchorDBlockHeight = anchorData.DBlockHeight
+						}
 					}
 
 					err = dbo.InsertAnchorData(anchorData, false)

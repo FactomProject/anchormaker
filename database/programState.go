@@ -15,12 +15,16 @@ var ProgramStateStr []byte = []byte("ProgramState")
 type ProgramStateBase struct {
 	LastEthereumBlockChecked      int64
 	LastFactomDBlockHeightChecked uint32
+	LastConfirmedAnchorDBlockHeight uint32
 	//a map holding pending eth transactions
 	//outer map is keyed by eth nonce, as that is the atomic/serial unit on ethereum
 	//inner map is an index starting at zero
 	PendingTxs map[int64]map[int64]*ProgramStatePendingTxInfo
+	PendingTx *ProgramStatePendingTxInfo
 }
 type ProgramStatePendingTxInfo struct {
+	Nonce          uint64
+	IsMandatory    bool   // whether or not this transaction needs to go through for this Directory Block height
 	EthTxID        string // the transactionid as it can be found in the eth blockchain
 	EthTxGasPrice  int64  // the eth/gas that this transaction is offering
 	FactomDBheight int64  // the factom directory block height that this transaction updates

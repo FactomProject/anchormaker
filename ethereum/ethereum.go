@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/FactomProject/anchormaker/api"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 //https://ethereum.github.io/browser-solidity/#version=soljson-latest.js
@@ -149,16 +150,20 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 			return 0, err
 		}
 		fmt.Printf("Found anchor for DBlock %v: %v, %v\n", dbHeight, ad.DBlockHeight, ad.MerkleRoot)
+
+		if ps.PendingTx != nil && ad.Ethereum.TXID == ps.PendingTx.EthTxID {
+			ps.PendingTx = nil
+		}
+		ps.LastConfirmedAnchorDBlockHeight = ad.DBlockHeight
 	}
 
 	// Update the block to start at for the next synchronization loop
 	if ps.LastEthereumBlockChecked < lastBlock + 1 {
 		ps.LastEthereumBlockChecked = lastBlock + 1
-		fmt.Printf("lastethblock: %d\n", ps.LastEthereumBlockChecked)
-		err = dbo.InsertProgramState(ps)
-		if err != nil {
-			return 0, err
-		}
+	}
+	err = dbo.InsertProgramState(ps)
+	if err != nil {
+		return 0, err
 	}
 
 	return txCount, nil
@@ -187,15 +192,14 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		return err
 	}
 
-	// Get the AnchorData head (the highest complete AnchorData record, no anchoring holes before this point)
-	ad, err := dbo.FetchAnchorDataHead()
-	if err != nil {
-		return err
+	if ps.PendingTx != nil {
+		fmt.Printf("Pending anchor for DBlock %d at nonce %d. Waiting for confirmation before sending another...\n", ps.PendingTx.FactomDBheight, ps.PendingTx.Nonce)
+		return nil
 	}
 
 	// Determine what directory block height should be anchored next
 	var height uint32
-	if ad == nil {
+	if ps.LastConfirmedAnchorDBlockHeight == 0 {
 		// We haven't anchored anything yet
 		if ps.LastFactomDBlockHeightChecked < WindowSize {
 			// we can cover entire backlog with one tx, start with the latest block
@@ -204,16 +208,24 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 			// we'll need multiple txs to cover backlog, start with the first 1000 block window
 			height = WindowSize - 1
 		}
-	} else if ad.DBlockHeight + WindowSize < ps.LastFactomDBlockHeightChecked {
+	} else if ps.LastConfirmedAnchorDBlockHeight + WindowSize < ps.LastFactomDBlockHeightChecked {
 		// We've anchored some of the backlog already, but still have more to go.
 		// Move to the next 1000 block window
-		height = ad.DBlockHeight + WindowSize
+		height = ps.LastConfirmedAnchorDBlockHeight + WindowSize
 	} else {
 		// We've anchored some of the backlog already, but can now start to anchor at the most recent block
 		height = ps.LastFactomDBlockHeightChecked
 	}
 
-	_, _, err = AnchorBlockWindow(dbo, height, WindowSize)
+	pendingTx, err := AnchorBlockWindow(dbo, height, WindowSize, false)
+	if err != nil {
+		return err
+	}
+	if pendingTx != nil {
+		ps.PendingTx = pendingTx
+	}
+
+	err = dbo.InsertProgramState(ps)
 	if err != nil {
 		return err
 	}
@@ -224,59 +236,56 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 // AnchorBlockWindow creates a Merkle root of all Directory Blocks from height to (height - size + 1), and then submits that MR to Ethereum.
 // returns done when we're done anchoring
 // returns skip if we can skip anchoring this block
-func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32) (done bool, skip bool, err error) {
+func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32, isMandatory bool) (*database.ProgramStatePendingTxInfo, error) {
 	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
-		done = true
-		skip = false
-		return
+		return nil, err
 	}
 	if ad == nil {
-		done = true
-		skip = false
-		return
+		return nil, nil
 	}
 	if ad.Ethereum.TXID != "" {
-		done = false
-		skip = true
-		return
+		return nil, nil
 	}
 
 	time.Sleep(5 * time.Second)
 
 	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(height, size)
 	if err != nil {
-		return true, false, err
+		return nil, err
 	}
 
 	tx, err := SendAnchor(int64(height), merkleRoot.String())
 	if err != nil {
-		done = false
-		skip = true
-		return
+		return nil, err
 	}
-	fmt.Printf("Submitted Ethereum Anchor for DBlocks %v to %v\n", height - size + 1, height)
+	fmt.Println("Ethereum Tx submitted:")
+	fmt.Printf("----txHash: %v\n----nonce: %d\n----DBlocks: %d to %d\n", tx.Hash().String(), tx.Nonce(), height - size + 1, height)
 
 	ad.MerkleRoot = merkleRoot.String()
-	ad.Ethereum.TXID = tx
+	ad.Ethereum.TXID = tx.Hash().String()
 	err = dbo.InsertAnchorData(ad, false)
 	if err != nil {
-		done = false
-		skip = true
-		return
+		return nil, err
 	}
 
-	done = false
-	skip = false
-	return
+	var pendingTx database.ProgramStatePendingTxInfo
+	pendingTx.Nonce = tx.Nonce()
+	pendingTx.EthTxGasPrice = tx.GasPrice().Int64()
+	pendingTx.EthTxID = tx.Hash().String()
+	pendingTx.FactomDBheight = int64(height)
+	pendingTx.FactomDBkeyMR = merkleRoot.String()
+	pendingTx.IsMandatory = isMandatory
+
+	return &pendingTx, err
 }
 
-func SendAnchor(height int64, merkleRoot string) (string, error) {
+func SendAnchor(height int64, merkleRoot string) (*types.Transaction, error) {
 	// Prepare gas limit, gas price, and contract function call params
 	gasInt, err := strconv.ParseUint(GasLimit, 10, 0)
 	if err != nil {
 		fmt.Printf("error parsing GasLimit in config file - %v", err)
-		return "", err
+		return nil, err
 	}
 
 	var gasPrice *big.Int
@@ -292,25 +301,22 @@ func SendAnchor(height int64, merkleRoot string) (string, error) {
 	merkleRootInt := new(big.Int)
 	merkleRootInt, ok := merkleRootInt.SetString(merkleRoot, 16)
 	if !ok {
-		return "", fmt.Errorf("failed to convert merkle root from string to big.Int: %s", merkleRoot)
+		return nil, fmt.Errorf("failed to convert merkle root from string to big.Int: %s", merkleRoot)
 	}
 
 	// Make function call to smart contract
 	auth, err := bind.NewTransactor(strings.NewReader(WalletKey), WalletPassword)
 	if err != nil {
-		return "", fmt.Errorf("failed to create authorized transactor: %v", err)
+		return nil, fmt.Errorf("failed to create authorized transactor: %v", err)
 	}
 	auth.GasPrice = gasPrice
 	auth.GasLimit = gasInt
 
 	tx, err := factomAnchor.SetAnchor(auth, big.NewInt(height), merkleRootInt)
 	if err != nil {
-		return "", fmt.Errorf("failed to call SetAnchor function: %v", err)
+		return nil, fmt.Errorf("failed to call SetAnchor function: %v", err)
 	}
-	fmt.Printf("Ethereum tx: %v\n", tx)
-	fmt.Printf("Ethereum Tx submitted:\n----txHash: %v\n----nonce: %d\n", tx.Hash().String(), tx.Nonce())
-
-	return tx.Hash().String(), nil
+	return tx, nil
 }
 
 /*
