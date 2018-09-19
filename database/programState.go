@@ -23,7 +23,7 @@ type PendingTxInfo struct {
 	IsMandatory    bool   // whether or not this transaction needs to go through for this Directory Block height
 	EthTxID        string // the transactionid as it can be found in the eth blockchain
 	EthTxGasPrice  int64  // the eth/gas that this transaction is offering
-	FactomDBheight int64  // the factom directory block height that this transaction updates
+	FactomDBheight uint32 // the factom directory block height that this transaction updates
 	FactomDBkeyMR  string // the factom directory block key merkle root that this transaction sets
 	TxTime         int64  // the unix time that this transaction was created and broadcast into the eth p2p network
 }

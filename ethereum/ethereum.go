@@ -28,7 +28,7 @@ var WalletAddress string
 var WalletKey string
 var WalletPassword string
 var ContractAddress string
-var GasLimit string
+var GasLimit uint64
 var EthGasStationAddress string
 var IgnoreWrongEntries bool
 var justConnectedToNet = true
@@ -41,11 +41,17 @@ func LoadConfig(c *config.AnchorConfig) {
 	WalletAddress = strings.ToLower(c.Ethereum.WalletAddress)
 	WalletPassword = c.Ethereum.WalletPassword
 	ContractAddress = strings.ToLower(c.Ethereum.ContractAddress)
-	GasLimit = c.Ethereum.GasLimit
 	EthGasStationAddress = c.Ethereum.EthGasStationAddress
 	IgnoreWrongEntries = c.Ethereum.IgnoreWrongEntries
 
 	var err error
+
+	GasLimit, err = strconv.ParseUint(c.Ethereum.GasLimit, 10, 0)
+	if err != nil {
+		fmt.Printf("error parsing GasLimit in config file - %v", err)
+		GasLimit = 200000
+	}
+
 	// Create IPC based RPC connection to the local node
 	conn, err = ethclient.Dial(c.Ethereum.GethIPCURL)
 	if err != nil {
@@ -151,7 +157,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 		}
 		fmt.Printf("Found anchor for DBlock %v: %v, %v\n", dbHeight, ad.DBlockHeight, ad.MerkleRoot)
 
-		if ps.PendingTx != nil && ad.Ethereum.TXID == ps.PendingTx.EthTxID {
+		if ps.PendingTx != nil {
 			ps.PendingTx = nil
 		}
 		ps.LastConfirmedAnchorDBlockHeight = ad.DBlockHeight
@@ -169,9 +175,8 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	return txCount, nil
 }
 
-// AnchorBlocksIntoEthereum first submits an Ethereum anchor for the newest directory blocks found during
-// the SynchronizationLoop, then attempts to start filling in the backlog of directory blocks that haven't
-// been anchored yet (starting with the oldest in the backlog)
+// AnchorBlocksIntoEthereum submits an Ethereum anchor for the oldest window of directory blocks that hasn't
+// been anchored yet, unless we are all caught up on the backlog, then it will submit an anchor for the newest window
 func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	fmt.Println("\nAnchorBlocksIntoEthereum():")
 	ps, err := dbo.FetchProgramState()
@@ -193,12 +198,34 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	}
 
 	if ps.PendingTx != nil {
-		fmt.Printf("Pending anchor for DBlock %d at nonce %d. Waiting for confirmation before sending another...\n", ps.PendingTx.FactomDBheight, ps.PendingTx.Nonce)
+		fmt.Printf("Pending anchor for DBlock %d at nonce %d. (IsMandatory = %v)\n", ps.PendingTx.FactomDBheight, ps.PendingTx.Nonce, ps.PendingTx.IsMandatory)
+
+		// Determine if we should resubmit the transaction, and if so, at what height
+		// TODO: Come up with a better time to use than 4 minutes
+		if time.Now().Unix() - ps.PendingTx.TxTime > 240 {
+			fmt.Println("Anchor has been pending for over 4 minutes, resubmitting...")
+			height := ps.PendingTx.FactomDBheight
+			if ps.PendingTx.IsMandatory && ps.PendingTx.FactomDBheight != ps.LastFactomDBlockHeightChecked{
+				height = ps.LastFactomDBlockHeightChecked
+			}
+			gasPrice := big.NewInt(int64(float64(ps.PendingTx.EthTxGasPrice) * 1.5))
+			newPendingTx, err := AnchorBlockWindowWithOptions(dbo, height, ps.PendingTx.IsMandatory, ps.PendingTx.Nonce, gasPrice)
+			if err != nil {
+				return err
+			}
+			ps.PendingTx = newPendingTx
+			err = dbo.InsertProgramState(ps)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
-	// Determine what directory block height should be anchored next
+	// Determine what directory block height should be anchored next and whether or not the anchor is mandatory
 	var height uint32
+	isMandatory := true
+
 	if ps.LastConfirmedAnchorDBlockHeight == 0 {
 		// We haven't anchored anything yet
 		if ps.LastFactomDBlockHeightChecked < WindowSize {
@@ -215,16 +242,16 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	} else {
 		// We've anchored some of the backlog already, but can now start to anchor at the most recent block
 		height = ps.LastFactomDBlockHeightChecked
+		if height < ps.LastConfirmedAnchorDBlockHeight + WindowSize {
+			isMandatory = false
+		}
 	}
 
-	pendingTx, err := AnchorBlockWindow(dbo, height, WindowSize, false)
+	pendingTx, err := AnchorBlockWindow(dbo, height, isMandatory)
 	if err != nil {
 		return err
 	}
-	if pendingTx != nil {
-		ps.PendingTx = pendingTx
-	}
-
+	ps.PendingTx = pendingTx
 	err = dbo.InsertProgramState(ps)
 	if err != nil {
 		return err
@@ -233,10 +260,18 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	return nil
 }
 
+func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height uint32, isMandatory bool) (*database.PendingTxInfo, error) {
+	gasPriceEstimates, err := GetGasPriceEstimates(EthGasStationAddress)
+	if err != nil {
+		fmt.Printf("Failed to get gas price estimates from %v\n", EthGasStationAddress)
+		fmt.Println("Defaulting gas price to 40 GWei")
+		return AnchorBlockWindowWithOptions(dbo, height, isMandatory, 0, big.NewInt(40000000000))
+	}
+	return AnchorBlockWindowWithOptions(dbo, height, isMandatory, 0, gasPriceEstimates.Fast)
+}
+
 // AnchorBlockWindow creates a Merkle root of all Directory Blocks from height to (height - size + 1), and then submits that MR to Ethereum.
-// returns done when we're done anchoring
-// returns skip if we can skip anchoring this block
-func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32, isMandatory bool) (*database.PendingTxInfo, error) {
+func AnchorBlockWindowWithOptions(dbo *database.AnchorDatabaseOverlay, height uint32, isMandatory bool, nonce uint64, gasPrice *big.Int) (*database.PendingTxInfo, error) {
 	ad, err := dbo.FetchAnchorData(height)
 	if err != nil {
 		return nil, err
@@ -250,17 +285,17 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32,
 
 	time.Sleep(5 * time.Second)
 
-	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(height, size)
+	merkleRoot, err := api.GetMerkleRootOfDBlockWindow(height, WindowSize)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := SendAnchor(int64(height), merkleRoot.String())
+	tx, err := SendAnchor(int64(height), merkleRoot.String(), nonce, gasPrice)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("Ethereum Tx submitted:")
-	fmt.Printf("----txHash: %v\n----nonce: %d\n----DBlocks: %d to %d\n", tx.Hash().String(), tx.Nonce(), height - size + 1, height)
+	fmt.Printf("----txHash: %v\n----nonce: %d\n----DBlocks: %d to %d\n", tx.Hash().String(), tx.Nonce(), height - WindowSize + 1, height)
 
 	ad.MerkleRoot = merkleRoot.String()
 	ad.Ethereum.TXID = tx.Hash().String()
@@ -273,31 +308,15 @@ func AnchorBlockWindow(dbo *database.AnchorDatabaseOverlay, height, size uint32,
 	pendingTx.Nonce = tx.Nonce()
 	pendingTx.EthTxGasPrice = tx.GasPrice().Int64()
 	pendingTx.EthTxID = tx.Hash().String()
-	pendingTx.FactomDBheight = int64(height)
+	pendingTx.FactomDBheight = height
 	pendingTx.FactomDBkeyMR = merkleRoot.String()
 	pendingTx.IsMandatory = isMandatory
+	pendingTx.TxTime = time.Now().Unix()
 
 	return &pendingTx, err
 }
 
-func SendAnchor(height int64, merkleRoot string) (*types.Transaction, error) {
-	// Prepare gas limit, gas price, and contract function call params
-	gasInt, err := strconv.ParseUint(GasLimit, 10, 0)
-	if err != nil {
-		fmt.Printf("error parsing GasLimit in config file - %v", err)
-		return nil, err
-	}
-
-	var gasPrice *big.Int
-	gasPriceEstimates, err := GetGasPriceEstimates(EthGasStationAddress)
-	if err != nil {
-		fmt.Printf("Failed to get gas price estimates from %v\n", EthGasStationAddress)
-		fmt.Println("Defaulting gas price to 40 GWei")
-		gasPrice = big.NewInt(40000000000)
-	} else {
-		gasPrice = gasPriceEstimates.Fast
-	}
-
+func SendAnchor(height int64, merkleRoot string, nonce uint64, gasPrice *big.Int) (*types.Transaction, error) {
 	merkleRootInt := new(big.Int)
 	merkleRootInt, ok := merkleRootInt.SetString(merkleRoot, 16)
 	if !ok {
@@ -310,7 +329,11 @@ func SendAnchor(height int64, merkleRoot string) (*types.Transaction, error) {
 		return nil, fmt.Errorf("failed to create authorized transactor: %v", err)
 	}
 	auth.GasPrice = gasPrice
-	auth.GasLimit = gasInt
+	auth.GasLimit = GasLimit
+	if nonce != 0 {
+		auth.Nonce = new(big.Int)
+		auth.Nonce = auth.Nonce.SetUint64(nonce)
+	}
 
 	tx, err := factomAnchor.SetAnchor(auth, big.NewInt(height), merkleRootInt)
 	if err != nil {
