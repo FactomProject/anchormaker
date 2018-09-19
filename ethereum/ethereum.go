@@ -205,7 +205,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		if time.Now().Unix() - ps.PendingTx.TxTime > 240 {
 			fmt.Println("Anchor has been pending for over 4 minutes, resubmitting...")
 			height := ps.PendingTx.FactomDBheight
-			if ps.PendingTx.IsMandatory && ps.PendingTx.FactomDBheight != ps.LastFactomDBlockHeightChecked{
+			if !ps.PendingTx.IsMandatory && ps.PendingTx.FactomDBheight != ps.LastFactomDBlockHeightChecked{
 				height = ps.LastFactomDBlockHeightChecked
 			}
 			gasPrice := big.NewInt(int64(float64(ps.PendingTx.EthTxGasPrice) * 1.5))
