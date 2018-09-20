@@ -15,26 +15,15 @@ type AnchorDataBase struct {
 	MerkleRoot   string // Merkle Root of a 1000 block window of Directory Blocks
 	DBlockHeight uint32 // Maximum height that is in the 1000 block window
 
-	BitcoinRecordHeight     uint32
-	BitcoinRecordEntryHash  string
 	EthereumRecordHeight    uint32 // Directory Block height for this Ethereum anchor's record within Factom
 	EthereumRecordEntryHash string // Entry Hash for this Ethereum anchor's record within Factom
 
-	Bitcoin struct {
-		Address     string //"1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1",
-		TXID        string //"9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5", BTC Hash - in reverse byte order
-		BlockHeight int64  //345678,
-		BlockHash   string //"00000000000000000cc14eacfc7057300aea87bed6fee904fd8e1c1f3dc008d4", BTC Hash - in reverse byte order
-		Offset      int64  //87
-	}
-
 	Ethereum struct {
-		Address     string // Contract Address that the anchor was put into
-		TXID        string //0x50ea0effc383542811a58704a6d6842ed6d76439a2d942d941896ad097c06a78
-		BlockHeight int64  //293003
-		BlockHash   string //0x3b504616495fc9cf7be9b5b776692a9abbfb95491fa62abf62dcdf4d53ff5979
-		Offset      int64  // Transaction index within its block
-		//Input       string //0x085f451f0000000000000000000000000000000000000000000000000000000000000000
+		ContractAddress string // Contract Address that the anchor was put into
+		TxID            string //0x50ea0effc383542811a58704a6d6842ed6d76439a2d942d941896ad097c06a78
+		BlockHeight     int64  //293003
+		BlockHash       string //0x3b504616495fc9cf7be9b5b776692a9abbfb95491fa62abf62dcdf4d53ff5979
+		TxIndex           int64  // Transaction index within its block
 	}
 }
 
@@ -63,7 +52,7 @@ var _ interfaces.DatabaseBatchable = (*AnchorData)(nil)
 
 // IsSubmitted returns whether or not an Ethereum transaction has been submitted for this anchor
 func (c *AnchorData) IsSubmitted() bool {
-	return c.Ethereum.TXID != ""
+	return c.Ethereum.TxID != ""
 }
 
 // IsComplete returns whether or not a given anchor has been recorded back into Factom

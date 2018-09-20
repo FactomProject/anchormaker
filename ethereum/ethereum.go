@@ -145,11 +145,11 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 
 		// We have a tx listed in the database already, but now we know it has been mined.
 		// Update the AnchorData to reflect this.
-		ad.Ethereum.Address = strings.ToLower(event.Raw.Address.String())
-		ad.Ethereum.TXID = strings.ToLower(event.Raw.TxHash.String())
+		ad.Ethereum.ContractAddress = strings.ToLower(event.Raw.Address.String())
+		ad.Ethereum.TxID = strings.ToLower(event.Raw.TxHash.String())
 		ad.Ethereum.BlockHeight = int64(event.Raw.BlockNumber)
 		ad.Ethereum.BlockHash = strings.ToLower(event.Raw.BlockHash.String())
-		ad.Ethereum.Offset = int64(event.Raw.TxIndex)
+		ad.Ethereum.TxIndex = int64(event.Raw.TxIndex)
 
 		err = dbo.InsertAnchorData(ad, false)
 		if err != nil {
@@ -279,7 +279,7 @@ func AnchorBlockWindowWithOptions(dbo *database.AnchorDatabaseOverlay, height ui
 	if ad == nil {
 		return nil, nil
 	}
-	if ad.Ethereum.TXID != "" {
+	if ad.Ethereum.TxID != "" {
 		return nil, nil
 	}
 
@@ -298,7 +298,7 @@ func AnchorBlockWindowWithOptions(dbo *database.AnchorDatabaseOverlay, height ui
 	fmt.Printf("----txHash: %v\n----nonce: %d\n----DBlocks: %d to %d\n", tx.Hash().String(), tx.Nonce(), height - WindowSize + 1, height)
 
 	ad.MerkleRoot = merkleRoot.String()
-	ad.Ethereum.TXID = tx.Hash().String()
+	ad.Ethereum.TxID = tx.Hash().String()
 	err = dbo.InsertAnchorData(ad, false)
 	if err != nil {
 		return nil, err

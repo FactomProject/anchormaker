@@ -145,36 +145,36 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 					}
 					//fmt.Printf("anchor - %v\n", ar)
 
-					anchorData, err := dbo.FetchAnchorData(ar.DBHeight)
+					anchorData, err := dbo.FetchAnchorData(ar.DBHeightMax)
 					if err != nil {
 						return 0, err
 					}
 					if anchorData.MerkleRoot == "" {
 						// Calculate Merkle root that should be in the anchor record
-						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ar.DBHeight, WindowSize)
+						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ar.DBHeightMax, WindowSize)
 						if err != nil {
 							return 0, err
 						}
 						anchorData.MerkleRoot = merkleRoot.String()
 					}
-					if anchorData.MerkleRoot != ar.KeyMR {
+					if anchorData.MerkleRoot != ar.WindowMR {
 						if IgnoreWrongEntries == false {
-							fmt.Printf("%v, %v\n", ar.DBHeight, anchorData)
-							panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.KeyMR))
+							fmt.Printf("%v, %v\n", ar.DBHeightMax, anchorData)
+							panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.WindowMR))
 							return 0, fmt.Errorf("AnchorData MerkleRoot does not match AnchorRecord MerkleRoot")
 						} else {
-							fmt.Printf("Bad AR: Height %v has MerkleRoot %v in database, but found %v in AnchorRecord on Factom\n", ar.DBHeight, anchorData.MerkleRoot, ar.KeyMR)
+							fmt.Printf("Bad AR: Height %v has MerkleRoot %v in database, but found %v in AnchorRecord on Factom\n", ar.DBHeightMax, anchorData.MerkleRoot, ar.WindowMR)
 							continue
 						}
 					}
 
 					if ar.Ethereum != nil {
-						fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeight, ar.KeyMR)
-						anchorData.Ethereum.Address = ar.Ethereum.Address
-						anchorData.Ethereum.TXID = ar.Ethereum.TXID
+						fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeightMax, ar.WindowMR)
+						anchorData.Ethereum.ContractAddress = ar.Ethereum.ContractAddress
+						anchorData.Ethereum.TxID = ar.Ethereum.TxID
 						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
 						anchorData.Ethereum.BlockHash = ar.Ethereum.BlockHash
-						anchorData.Ethereum.Offset = ar.Ethereum.Offset
+						anchorData.Ethereum.TxIndex = ar.Ethereum.TxIndex
 
 						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
 						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
@@ -256,18 +256,18 @@ func SaveAnchorsIntoFactom(dbo *database.AnchorDatabaseOverlay) error {
 		// Check that the anchor tx was confirmed on Ethereum, and that we haven't recorded that tx's receipt in Factom yet
 		if anchorData.Ethereum.BlockHash != "" && anchorData.EthereumRecordEntryHash == "" {
 			anchorRecord := new(anchor.AnchorRecord)
-			anchorRecord.AnchorRecordVer = 1
-			anchorRecord.DBHeight = anchorData.DBlockHeight
-			// TODO: update AnchorRecord struct in factomd to reflect that this is no longer the KeyMR of a singe DBlock, but for a window
-			anchorRecord.KeyMR = anchorData.MerkleRoot
+			anchorRecord.AnchorRecordVer = 2
+			anchorRecord.DBHeightMax = anchorData.DBlockHeight
+			anchorRecord.DBHeightMin = anchorData.DBlockHeight - WindowSize + 1
+			anchorRecord.WindowMR = anchorData.MerkleRoot
 			anchorRecord.RecordHeight = ps.LastFactomDBlockHeightChecked + 1
 
 			anchorRecord.Ethereum = new(anchor.EthereumStruct)
-			anchorRecord.Ethereum.Address = anchorData.Ethereum.Address
-			anchorRecord.Ethereum.TXID = anchorData.Ethereum.TXID
+			anchorRecord.Ethereum.ContractAddress = anchorData.Ethereum.ContractAddress
+			anchorRecord.Ethereum.TxID = anchorData.Ethereum.TxID
 			anchorRecord.Ethereum.BlockHeight = anchorData.Ethereum.BlockHeight
 			anchorRecord.Ethereum.BlockHash = anchorData.Ethereum.BlockHash
-			anchorRecord.Ethereum.Offset = anchorData.Ethereum.Offset
+			anchorRecord.Ethereum.TxIndex = anchorData.Ethereum.TxIndex
 
 			tx, err := CreateAndSendAnchor(anchorRecord)
 			if err != nil {
