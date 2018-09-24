@@ -205,7 +205,7 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 		if time.Now().Unix() - ps.PendingTx.TxTime > 240 {
 			fmt.Println("Anchor has been pending for over 4 minutes, resubmitting...")
 			height := ps.PendingTx.FactomDBheight
-			if !ps.PendingTx.IsMandatory && ps.PendingTx.FactomDBheight != ps.LastFactomDBlockHeightChecked{
+			if !ps.PendingTx.IsMandatory && ps.PendingTx.FactomDBheight != ps.LastFactomDBlockHeightChecked {
 				height = ps.LastFactomDBlockHeightChecked
 			}
 			gasPrice := big.NewInt(int64(float64(ps.PendingTx.EthTxGasPrice) * 1.5))
@@ -226,7 +226,11 @@ func AnchorBlocksIntoEthereum(dbo *database.AnchorDatabaseOverlay) error {
 	var height uint32
 	isMandatory := true
 
-	if ps.LastConfirmedAnchorDBlockHeight == 0 {
+	if ps.LastConfirmedAnchorDBlockHeight == ps.LastFactomDBlockHeightChecked {
+		// We are fully caught up with all anchors
+		fmt.Println("All anchors up to date. Waiting for next directory block.")
+		return nil
+	} else if ps.LastConfirmedAnchorDBlockHeight == 0 {
 		// We haven't anchored anything yet
 		if ps.LastFactomDBlockHeightChecked < WindowSize {
 			// we can cover entire backlog with one tx, start with the latest block
@@ -279,7 +283,7 @@ func AnchorBlockWindowWithOptions(dbo *database.AnchorDatabaseOverlay, height ui
 	if ad == nil {
 		return nil, nil
 	}
-	if ad.Ethereum.TxID != "" {
+	if ad.Ethereum.BlockHash != "" {
 		return nil, nil
 	}
 
