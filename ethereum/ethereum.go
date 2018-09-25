@@ -81,7 +81,7 @@ func SynchronizeEthereumData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	synced, err := CheckIfEthSynced()
 	if err != nil {
 		return 0, err
-	} else if synced == false {
+	} else if !synced {
 		return 0, fmt.Errorf("eth node not synced, waiting")
 	}
 

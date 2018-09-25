@@ -21,19 +21,16 @@ func main() {
 	factom.LoadConfig(c)
 	api.SetServer(c.Factom.FactomdAddress)
 
-	var err error
-	err = setup.Setup(c)
+	err := setup.Setup(c)
 	if err != nil {
 		panic(err)
 	}
 
 	dbo := database.NewMapDB()
-
 	if c.App.DBType == "Map" {
 		fmt.Printf("Starting Map database\n")
 		dbo = database.NewMapDB()
 	}
-
 	if c.App.DBType == "LDB" {
 		fmt.Printf("Starting Level database\n")
 		dbo, err = database.NewLevelDB(c.App.LdbPath)

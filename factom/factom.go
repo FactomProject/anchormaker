@@ -28,7 +28,7 @@ var ECAddress *factom.ECAddress
 var FactoidBalanceThreshold int64
 var ECBalanceThreshold int64
 
-//6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
+// 6e4540d08d5ac6a1a394e982fb6a2ab8b516ee751c37420055141b94fe070bfe
 var EthereumAnchorChainID interfaces.IHash
 var FirstEthereumAnchorChainEntryHash interfaces.IHash
 
@@ -114,83 +114,74 @@ func SynchronizeFactomData(dbo *database.AnchorDatabaseOverlay) (int, error) {
 	for _, dBlock := range dBlockList {
 		for _, v := range dBlock.GetDBEntries() {
 			// Looking for Ethereum anchor records in new DBlock
-			if v.GetChainID().String() == EthereumAnchorChainID.String() {
-				//fmt.Printf("Entry is being parsed - %v\n", v.GetChainID())
-				entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
+			if v.GetChainID().String() != EthereumAnchorChainID.String() {
+				continue
+			}
+
+			entryBlock, err := api.GetEBlock(v.GetKeyMR().String())
+			if err != nil {
+				return 0, err
+			}
+			for _, eh := range entryBlock.GetEntryHashes() {
+				if eh.IsMinuteMarker() || eh.String() == FirstEthereumAnchorChainEntryHash.String() {
+					continue
+				}
+
+				entry, err := api.GetEntry(eh.String())
 				if err != nil {
 					return 0, err
 				}
-				for _, eh := range entryBlock.GetEntryHashes() {
-					if eh.IsMinuteMarker() == true {
-						continue
-					}
-					//fmt.Printf("\t%v\n", eh.String())
-					if eh.String() == FirstEthereumAnchorChainEntryHash.String() {
-						continue
-					}
-					//fmt.Printf("Fetching %v\n", eh.String())
-					entry, err := api.GetEntry(eh.String())
-					if err != nil {
-						return 0, err
-					}
-					//fmt.Printf("Entry - %v\n", entry)
-					ar, valid, err := anchor.UnmarshalAndValidateAnchorEntryAnyVersion(entry, AnchorSigPublicKeys)
-					if err != nil {
-						return 0, err
-					}
-					if valid == false {
-						fmt.Printf("Invalid anchor - %v\n", entry)
-						continue
-						//return 0, fmt.Errorf("Invalid anchor - %v\n", entry)
-					}
-					//fmt.Printf("anchor - %v\n", ar)
-
-					anchorData, err := dbo.FetchAnchorData(ar.DBHeightMax)
-					if err != nil {
-						return 0, err
-					}
-					if anchorData.MerkleRoot == "" {
-						// Calculate Merkle root that should be in the anchor record
-						merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ar.DBHeightMax, WindowSize)
-						if err != nil {
-							return 0, err
-						}
-						anchorData.MerkleRoot = merkleRoot.String()
-					}
-					if anchorData.MerkleRoot != ar.WindowMR {
-						if IgnoreWrongEntries == false {
-							fmt.Printf("%v, %v\n", ar.DBHeightMax, anchorData)
-							panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.WindowMR))
-							return 0, fmt.Errorf("AnchorData MerkleRoot does not match AnchorRecord MerkleRoot")
-						} else {
-							fmt.Printf("Bad AR: Height %v has MerkleRoot %v in database, but found %v in AnchorRecord on Factom\n", ar.DBHeightMax, anchorData.MerkleRoot, ar.WindowMR)
-							continue
-						}
-					}
-
-					if ar.Ethereum != nil {
-						fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeightMax, ar.WindowMR)
-						anchorData.Ethereum.ContractAddress = ar.Ethereum.ContractAddress
-						anchorData.Ethereum.TxID = ar.Ethereum.TxID
-						anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
-						anchorData.Ethereum.BlockHash = ar.Ethereum.BlockHash
-						anchorData.Ethereum.TxIndex = ar.Ethereum.TxIndex
-
-						anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
-						//fmt.Printf("dBlock.GetDatabaseHeight() - %v\n", dBlock.GetDatabaseHeight())
-						anchorData.EthereumRecordEntryHash = eh.String()
-
-						if ps.LastConfirmedAnchorDBlockHeight < anchorData.DBlockHeight {
-							ps.LastConfirmedAnchorDBlockHeight = anchorData.DBlockHeight
-						}
-					}
-
-					err = dbo.InsertAnchorData(anchorData, false)
-					if err != nil {
-						return 0, err
-					}
-					blockCount++
+				ar, valid, err := anchor.UnmarshalAndValidateAnchorEntryAnyVersion(entry, AnchorSigPublicKeys)
+				if err != nil {
+					return 0, err
+				} else if !valid {
+					fmt.Printf("Invalid anchor - %v\n", entry)
+					continue
 				}
+
+				anchorData, err := dbo.FetchAnchorData(ar.DBHeightMax)
+				if err != nil {
+					return 0, err
+				}
+				if anchorData.MerkleRoot == "" {
+					// Calculate Merkle root that should be in the anchor record
+					merkleRoot, err := api.GetMerkleRootOfDBlockWindow(ar.DBHeightMax, WindowSize)
+					if err != nil {
+						return 0, err
+					}
+					anchorData.MerkleRoot = merkleRoot.String()
+				}
+				if anchorData.MerkleRoot != ar.WindowMR {
+					if IgnoreWrongEntries == false {
+						fmt.Printf("%v, %v\n", ar.DBHeightMax, anchorData)
+						panic(fmt.Sprintf("%v vs %v", anchorData.MerkleRoot, ar.WindowMR))
+						return 0, fmt.Errorf("AnchorData MerkleRoot does not match AnchorRecord MerkleRoot")
+					} else {
+						fmt.Printf("Bad AR: Height %v has MerkleRoot %v in database, but found %v in AnchorRecord on Factom\n", ar.DBHeightMax, anchorData.MerkleRoot, ar.WindowMR)
+						continue
+					}
+				}
+
+				if ar.Ethereum != nil {
+					fmt.Printf("Found Ethereum anchor record in Factom DBlock %v: %v, %v\n", dBlock.GetDatabaseHeight(), ar.DBHeightMax, ar.WindowMR)
+					anchorData.Ethereum.ContractAddress = ar.Ethereum.ContractAddress
+					anchorData.Ethereum.TxID = ar.Ethereum.TxID
+					anchorData.Ethereum.BlockHeight = ar.Ethereum.BlockHeight
+					anchorData.Ethereum.BlockHash = ar.Ethereum.BlockHash
+					anchorData.Ethereum.TxIndex = ar.Ethereum.TxIndex
+					anchorData.EthereumRecordHeight = dBlock.GetDatabaseHeight()
+					anchorData.EthereumRecordEntryHash = eh.String()
+
+					if ps.LastConfirmedAnchorDBlockHeight < anchorData.DBlockHeight {
+						ps.LastConfirmedAnchorDBlockHeight = anchorData.DBlockHeight
+					}
+				}
+
+				err = dbo.InsertAnchorData(anchorData, false)
+				if err != nil {
+					return 0, err
+				}
+				blockCount++
 			}
 		}
 
