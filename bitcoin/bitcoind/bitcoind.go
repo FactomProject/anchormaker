@@ -870,7 +870,7 @@ type SignRawTransactionResp struct {
 
 func SignRawTransaction(raw string) (*SignRawTransactionResp, *Result, error) {
 	//version 0.7 Adds signatures to a raw transaction and returns the resulting raw transaction.
-	resp, err := CallWithBasicAuth("signrawtransaction", []interface{}{raw})
+	resp, err := CallWithBasicAuth("signrawtransactionwithwallet", []interface{}{raw})
 	if err != nil {
 		return nil, nil, err
 	}
